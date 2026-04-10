@@ -68,6 +68,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - name: Create test .env
+        run: |
+          cat > .env << 'EOF'
+          DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/bpo_nexus
+          REDIS_URL=redis://redis:6379/0
+          AUTH0_DOMAIN=ci-test.auth0.com
+          AUTH0_AUDIENCE=https://api.bponexus.com
+          CLAUDE_API_KEY=sk-ci-test-placeholder
+          EOF
       - name: Build API image
         run: docker compose build api
       - name: Start DB and Redis
