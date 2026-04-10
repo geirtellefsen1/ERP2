@@ -12,6 +12,14 @@ from app.models.task import Task
 from app.models.posting_period import PostingPeriod
 from app.models.journal_entry import JournalEntry, JournalEntryLine
 from app.models.bank_feed import BankConnection, BankTransaction
+from app.models.whatsapp import WhatsAppMessage, ConversationFlow
+from app.models.chat import ChatSession, ChatMessage, ChatRateLimit
+from app.models.employee import Employee
+from app.models.payslip import Payslip
+from app.models.payroll_no import PayrollRunNO, EmployeeNOSettings
+from app.models.leave import LeaveType, LeaveBalance, LeaveRequest, LeaveBlackoutDate
+from app.models.filing import FilingRecord, FilingDeadline
+from app.models.hospitality import HospitalityClient, RoomType, DailyRevenue, GratuityTip, InventoryStockTake
 
 __all__ = [
     "Base",
@@ -32,4 +40,24 @@ __all__ = [
     "JournalEntryLine",
     "BankConnection",
     "BankTransaction",
+    "WhatsAppMessage",
+    "ConversationFlow",
+    "ChatSession",
+    "ChatMessage",
+    "ChatRateLimit",
+    "Employee",
+    "Payslip",
+    "PayrollRunNO",
+    "EmployeeNOSettings",
+    "LeaveType",
+    "LeaveBalance",
+    "LeaveRequest",
+    "LeaveBlackoutDate",
+    "FilingRecord",
+    "FilingDeadline",
+    "HospitalityClient",
+    "RoomType",
+    "DailyRevenue",
+    "GratuityTip",
+    "InventoryStockTake",
 ]
