@@ -3,20 +3,22 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Client
 from app.schemas import ClientCreate, ClientUpdate, Client
+from app.auth import AuthUser, get_current_user
+from app.rbac import require_min_role, Roles
 
 router = APIRouter(prefix="/api/v1/clients", tags=["clients"])
 
 
 @router.get("", response_model=list[Client])
 def list_clients(
-    agency_id: int = Query(..., description="Filter by agency"),
     skip: int = 0,
     limit: int = 100,
     country: str | None = None,
     is_active: bool | None = None,
+    current_user: AuthUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Client).filter(Client.agency_id == agency_id)
+    q = db.query(Client).filter(Client.agency_id == current_user.agency_id)
     if country:
         q = q.filter(Client.country == country)
     if is_active is not None:
@@ -25,8 +27,12 @@ def list_clients(
 
 
 @router.post("", response_model=Client, status_code=status.HTTP_201_CREATED)
-def create_client(data: ClientCreate, db: Session = Depends(get_db)):
-    client = Client(**data.model_dump())
+def create_client(
+    data: ClientCreate,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    client = Client(**data.model_dump(), agency_id=current_user.agency_id)
     db.add(client)
     db.commit()
     db.refresh(client)
