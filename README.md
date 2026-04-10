@@ -90,3 +90,4 @@ cd apps/web && pnpm test
 ## 📜 License
 
 Confidential — Saga Advisory AS © 2026
+
