@@ -1,0 +1,22 @@
+{
+  "name": "Marketing Agency",
+  "description": "Chart of Accounts for marketing/creative agencies",
+  "accounts": [
+    {"account_number": "1000", "name": "Cash", "account_type": "asset"},
+    {"account_number": "1200", "name": "Accounts Receivable", "account_type": "asset"},
+    {"account_number": "1300", "name": "Work in Progress", "account_type": "asset"},
+    {"account_number": "2000", "name": "Accounts Payable", "account_type": "liability"},
+    {"account_number": "2100", "name": "VAT Payable", "account_type": "liability"},
+    {"account_number": "3000", "name": "Share Capital", "account_type": "equity"},
+    {"account_number": "3100", "name": "Retained Earnings", "account_type": "equity"},
+    {"account_number": "4000", "name": "Retainer Revenue", "account_type": "revenue"},
+    {"account_number": "4100", "name": "Project Revenue", "account_type": "revenue"},
+    {"account_number": "4200", "name": "Media Commission", "account_type": "revenue"},
+    {"account_number": "5000", "name": "Subcontractor Costs", "account_type": "expense"},
+    {"account_number": "5100", "name": "Media Buying", "account_type": "expense"},
+    {"account_number": "6000", "name": "Salaries", "account_type": "expense"},
+    {"account_number": "6100", "name": "Office Rent", "account_type": "expense"},
+    {"account_number": "6200", "name": "Software Subscriptions", "account_type": "expense"},
+    {"account_number": "6300", "name": "Travel & Entertainment", "account_type": "expense"}
+  ]
+}

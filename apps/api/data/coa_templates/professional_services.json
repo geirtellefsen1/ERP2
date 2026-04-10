@@ -1,0 +1,24 @@
+{
+  "name": "Professional Services",
+  "description": "Chart of Accounts for consulting, legal, accounting firms",
+  "accounts": [
+    {"account_number": "1000", "name": "Cash", "account_type": "asset"},
+    {"account_number": "1100", "name": "Trust Account", "account_type": "asset"},
+    {"account_number": "1200", "name": "Accounts Receivable", "account_type": "asset"},
+    {"account_number": "1300", "name": "Work in Progress", "account_type": "asset"},
+    {"account_number": "1400", "name": "Prepaid Insurance", "account_type": "asset"},
+    {"account_number": "2000", "name": "Accounts Payable", "account_type": "liability"},
+    {"account_number": "2100", "name": "VAT Payable", "account_type": "liability"},
+    {"account_number": "2200", "name": "Trust Liability", "account_type": "liability"},
+    {"account_number": "3000", "name": "Partners Capital", "account_type": "equity"},
+    {"account_number": "3100", "name": "Retained Earnings", "account_type": "equity"},
+    {"account_number": "4000", "name": "Fee Revenue", "account_type": "revenue"},
+    {"account_number": "4100", "name": "Disbursement Revenue", "account_type": "revenue"},
+    {"account_number": "5000", "name": "Direct Costs", "account_type": "expense"},
+    {"account_number": "6000", "name": "Staff Costs", "account_type": "expense"},
+    {"account_number": "6100", "name": "Professional Development", "account_type": "expense"},
+    {"account_number": "6200", "name": "Insurance - PI", "account_type": "expense"},
+    {"account_number": "6300", "name": "Office Rent", "account_type": "expense"},
+    {"account_number": "6400", "name": "Technology", "account_type": "expense"}
+  ]
+}
