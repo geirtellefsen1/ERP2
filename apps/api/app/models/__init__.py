@@ -11,6 +11,7 @@ from app.models.payroll import PayrollRun
 from app.models.task import Task
 from app.models.posting_period import PostingPeriod
 from app.models.journal_entry import JournalEntry, JournalEntryLine
+from app.models.bank_feed import BankConnection, BankTransaction
 
 __all__ = [
     "Base",
@@ -29,4 +30,6 @@ __all__ = [
     "PostingPeriod",
     "JournalEntry",
     "JournalEntryLine",
+    "BankConnection",
+    "BankTransaction",
 ]
