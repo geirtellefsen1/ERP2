@@ -8,6 +8,7 @@ from app.models.invoice import Invoice, InvoiceLineItem
 from app.models.transaction import Transaction
 from app.models.document import Document
 from app.models.payroll import PayrollRun
+from app.models.task import Task
 
 __all__ = [
     "Base",
@@ -22,4 +23,5 @@ __all__ = [
     "Transaction",
     "Document",
     "PayrollRun",
+    "Task",
 ]
