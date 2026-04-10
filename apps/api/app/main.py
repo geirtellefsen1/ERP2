@@ -3,7 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 
-app = FastAPI(title="BPO Nexus API", version="0.2.0")
+from app.routers import auth
+
+app = FastAPI(title="BPO Nexus API", version="0.3.0", description="AI-First BPO Platform")
 
 origins = [
     "http://localhost:3000",
@@ -19,6 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Routers
+app.include_router(auth.router)
+
 
 class HealthResponse(BaseModel):
     status: str
@@ -27,9 +32,9 @@ class HealthResponse(BaseModel):
 
 @app.get("/health", response_model=HealthResponse)
 async def health():
-    return HealthResponse(status="ok", version="0.2.0")
+    return HealthResponse(status="ok", version="0.3.0")
 
 
 @app.get("/")
 async def root():
-    return {"message": "BPO Nexus API", "version": "0.2.0", "docs": "/docs"}
+    return {"message": "BPO Nexus API", "version": "0.3.0", "docs": "/docs"}

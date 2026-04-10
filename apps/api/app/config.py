@@ -11,9 +11,7 @@ class Settings(BaseSettings):
     auth0_audience: str = ""
     claude_api_key: str = ""
 
-    class Config:
-        env_file = ".env"
-        extra = "allow"
+    model_config = {"env_file": ".env", "extra": "allow"}
 
 
 @lru_cache
