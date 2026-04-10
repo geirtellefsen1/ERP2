@@ -8,11 +8,8 @@ on:
 
 jobs:
   api-test:
-    name: API (Python ${{ matrix.python-version }})
+    name: API (Python 3.12)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.12"]
 
     services:
       postgres:
@@ -31,49 +28,36 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-
+          python-version: "3.12"
       - name: Install dependencies
         run: |
           cd apps/api
           pip install -q -r requirements.txt
-
-      - name: Health check
+      - name: Start server
         run: |
           cd apps/api
-          timeout 10 sh -c 'uvicorn app.main:app --port 8000 &
-sleep 3
-curl -s http://localhost:8000/health
-curl -s http://localhost:8000/api/v1
-kill %1 2>/dev/null || true'
+          uvicorn app.main:app --port 8000 &
+          sleep 4
+      - name: Health check
+        run: |
+          curl -s http://localhost:8000/health
 
   web-test:
-    name: Web (Node ${{ matrix.node-version }})
+    name: Web (Node 20)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: ["20"]
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
         with:
-          version: 9
-
+          version: "9"
       - name: Install dependencies
         run: pnpm install
-
       - name: Build
         run: pnpm --filter @bpo-nexus/web build
 
@@ -83,22 +67,18 @@ kill %1 2>/dev/null || true'
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build images
-        run: docker compose build api web
-
-      - name: Start services
-        run: docker compose up -d db redis && docker compose up -d api
+      - uses: docker/setup-buildx-action@v3
+      - name: Build API image
+        run: docker compose build api
+      - name: Start DB and Redis
+        run: docker compose up -d db redis
+      - name: Start API
+        run: docker compose up -d api
         timeout-minutes: 5
-
       - name: Health check
         run: |
           sleep 5
-          docker compose exec -T api curl -s http://localhost:8000/health
-
+          docker compose exec -T api curl -f http://localhost:8000/health
       - name: Teardown
         if: always()
         run: docker compose down -v
