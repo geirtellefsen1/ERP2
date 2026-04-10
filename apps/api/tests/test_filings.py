@@ -1,8 +1,14 @@
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from app.main import app
+from app.routers import filings
 import json
 
-client = TestClient(app)
+# Create a test app with the filings router included
+# (main.py will integrate this router later; tests must be self-contained)
+test_app = FastAPI()
+test_app.include_router(filings.router)
+
+client = TestClient(test_app)
 
 
 # ---- Auth-required endpoint tests (401 without token) ----
@@ -60,8 +66,9 @@ def test_upcoming_deadlines_requires_auth():
 
 def test_vat_xml_norway():
     from app.services.filing_service import prepare_vat_filing, generate_vat_xml
+    from datetime import date
 
-    filing_data = prepare_vat_filing(1, "NO", __import__("datetime").date(2026, 1, 1), __import__("datetime").date(2026, 3, 31))
+    filing_data = prepare_vat_filing(1, "NO", date(2026, 1, 1), date(2026, 3, 31))
     xml = generate_vat_xml("NO", filing_data)
     assert "<MVAReturn" in xml
     assert "<OutputVAT>" in xml

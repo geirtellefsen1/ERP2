@@ -7,9 +7,10 @@ from app.routers import (
     auth, clients, tasks, accounts, coa_import, journals, posting_periods,
     bank_feeds, reconciliation, reports, ai, documents,
     whatsapp, chat, payroll, payroll_no, leave, filings, hospitality,
+    professional_services, cashflow, report_templates,
 )
 
-app = FastAPI(title="BPO Nexus API", version="0.18.0", description="AI-First BPO Platform")
+app = FastAPI(title="BPO Nexus API", version="0.21.0", description="AI-First BPO Platform")
 
 origins = [
     "http://localhost:3000",
@@ -45,6 +46,9 @@ app.include_router(payroll_no.router)
 app.include_router(leave.router)
 app.include_router(filings.router)
 app.include_router(hospitality.router)
+app.include_router(professional_services.router)
+app.include_router(cashflow.router)
+app.include_router(report_templates.router)
 
 
 class HealthResponse(BaseModel):
@@ -54,9 +58,9 @@ class HealthResponse(BaseModel):
 
 @app.get("/health", response_model=HealthResponse)
 async def health():
-    return HealthResponse(status="ok", version="0.18.0")
+    return HealthResponse(status="ok", version="0.21.0")
 
 
 @app.get("/")
 async def root():
-    return {"message": "BPO Nexus API", "version": "0.18.0", "docs": "/docs"}
+    return {"message": "BPO Nexus API", "version": "0.21.0", "docs": "/docs"}

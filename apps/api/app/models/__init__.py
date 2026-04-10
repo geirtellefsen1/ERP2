@@ -20,6 +20,9 @@ from app.models.payroll_no import PayrollRunNO, EmployeeNOSettings
 from app.models.leave import LeaveType, LeaveBalance, LeaveRequest, LeaveBlackoutDate
 from app.models.filing import FilingRecord, FilingDeadline
 from app.models.hospitality import HospitalityClient, RoomType, DailyRevenue, GratuityTip, InventoryStockTake
+from app.models.professional_services import Matter, TimeEntry, BillingRate, WIPEntry, TrustTransaction, Disbursement
+from app.models.cashflow import CashflowForecast, CashflowForecastLine, ForecastAlert
+from app.models.report_template import ReportTemplate, GeneratedReport
 
 __all__ = [
     "Base",
@@ -60,4 +63,15 @@ __all__ = [
     "DailyRevenue",
     "GratuityTip",
     "InventoryStockTake",
+    "Matter",
+    "TimeEntry",
+    "BillingRate",
+    "WIPEntry",
+    "TrustTransaction",
+    "Disbursement",
+    "CashflowForecast",
+    "CashflowForecastLine",
+    "ForecastAlert",
+    "ReportTemplate",
+    "GeneratedReport",
 ]
