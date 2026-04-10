@@ -1,0 +1,17 @@
+{
+  "name": "bpo-nexus",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "pnpm --parallel -r run dev",
+    "build": "pnpm -r run build",
+    "dev:api": "pnpm --filter @bpo-nexus/api dev",
+    "dev:web": "pnpm --filter @bpo-nexus/web dev",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint"
+  },
+  "devDependencies": {
+    "pnpm": "^9.12.0"
+  }
+}
