@@ -9,6 +9,8 @@ from app.models.transaction import Transaction
 from app.models.document import Document
 from app.models.payroll import PayrollRun
 from app.models.task import Task
+from app.models.posting_period import PostingPeriod
+from app.models.journal_entry import JournalEntry, JournalEntryLine
 
 __all__ = [
     "Base",
@@ -24,4 +26,7 @@ __all__ = [
     "Document",
     "PayrollRun",
     "Task",
+    "PostingPeriod",
+    "JournalEntry",
+    "JournalEntryLine",
 ]
