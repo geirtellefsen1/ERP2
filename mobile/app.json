@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "BPO Nexus",
+    "slug": "bpo-nexus",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "bponexus",
+    "platforms": ["ios", "android"],
+    "ios": { "bundleIdentifier": "com.bponexus.mobile" },
+    "android": { "package": "com.bponexus.mobile" }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "bpo-nexus-mobile",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios"
+  },
+  "dependencies": {
+    "expo": "~50.0.0",
+    "expo-router": "~3.4.0",
+    "react": "18.2.0",
+    "react-native": "0.73.0",
+    "expo-camera": "~14.0.0",
+    "expo-local-authentication": "~13.6.0",
+    "expo-notifications": "~0.27.0",
+    "expo-secure-store": "~12.8.0",
+    "@react-navigation/native": "^6.1.0"
+  }
+}
