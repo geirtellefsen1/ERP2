@@ -138,3 +138,59 @@ class PayrollRun(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     client = relationship("Client", back_populates="payroll_runs")
+
+
+# ─── Sprint 5: Chart of Accounts ─────────────────────────────────────────────
+
+class Account(Base):
+    """GL account — part of a client's chart of accounts"""
+    __tablename__ = "accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    code = Column(String(20), nullable=False)
+    name = Column(String(255), nullable=False)
+    account_type = Column(String(20), nullable=False)
+    sub_type = Column(String(50))
+    parent_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    is_active = Column(Boolean, default=True)
+    is_control_account = Column(Boolean, default=False)
+    description = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    client = relationship("Client")
+    parent = relationship("Account", remote_side=[id], backref="children")
+
+
+class JournalEntry(Base):
+    """Double-entry journal entry"""
+    __tablename__ = "journal_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    entry_date = Column(DateTime(timezone=True), nullable=False)
+    description = Column(Text)
+    reference = Column(String(100))
+    posted_by = Column(Integer, ForeignKey("users.id"))
+    is_reversal = Column(Boolean, default=False)
+    reversed_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    client = relationship("Client")
+    lines = relationship("JournalLine", back_populates="entry", cascade="all, delete-orphan")
+
+
+class JournalLine(Base):
+    """Line item of a journal entry"""
+    __tablename__ = "journal_lines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    entry_id = Column(Integer, ForeignKey("journal_entries.id"), nullable=False)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False)
+    debit = Column(Numeric(14, 2), default=0)
+    credit = Column(Numeric(14, 2), default=0)
+    description = Column(Text)
+
+    entry = relationship("JournalEntry", back_populates="lines")
+    account = relationship("Account")

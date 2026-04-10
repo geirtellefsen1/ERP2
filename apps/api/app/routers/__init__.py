@@ -1,2 +1,2 @@
 # API Routers
-from app.routers import agencies, clients, users, auth
+from app.routers import agencies, clients, users, auth, accounts
