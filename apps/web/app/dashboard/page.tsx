@@ -70,7 +70,7 @@ export default function DashboardPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-900">Agency Dashboard</h1>
-        <p className="text-slate-500 mt-1">Welcome back — here's what's happening today.</p>
+        <p className="text-slate-500 mt-1">Welcome back — here is what is happening today.</p>
       </div>
 
       {/* Stats */}
