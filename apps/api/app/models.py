@@ -235,3 +235,22 @@ class BankTransaction(Base):
     imported_at = Column(DateTime(timezone=True), server_default=func.now())
 
     account = relationship("BankAccount", back_populates="transactions")
+
+
+# ─── Sprint 9: Client Portal ───────────────────────────────────────────────────
+
+class Document(Base):
+    """Uploaded document for a client"""
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    name = Column(String(255), nullable=False)
+    category = Column(String(100))
+    file_path = Column(String(500))  # DO Spaces path
+    file_size = Column(Integer)
+    mime_type = Column(String(100))
+    uploaded_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    client = relationship("Client")
