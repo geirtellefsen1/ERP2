@@ -1,211 +1,293 @@
-"use client";
-import { useEffect, useState } from "react";
+"use client"
+
+import { useEffect, useState } from "react"
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Building2,
+  Globe,
+  Hash,
+  Filter,
+} from "lucide-react"
+import { apiGet, apiPost } from "@/lib/api"
+import { formatDate } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Avatar } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
+import { EmptyState } from "@/components/ui/empty-state"
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table"
+import {
+  Modal,
+  ModalHeader,
+  ModalTitle,
+  ModalDescription,
+  ModalContent,
+  ModalFooter,
+} from "@/components/ui/modal"
+import { useToast } from "@/components/ui/toast"
 
 interface Client {
-  id: number;
-  name: string;
-  country: string;
-  industry: string;
-  registration_number: string | null;
-  is_active: boolean;
-  created_at: string;
+  id: number
+  name: string
+  country: string
+  industry: string
+  registration_number: string | null
+  is_active: boolean
+  created_at: string
 }
 
-function getToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("bpo_token") : null;
-}
-
-async function apiGet(path: string) {
-  const token = getToken();
-  const res = await fetch(`http://localhost:8000${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (res.status === 401) {
-    window.location.href = "/login";
-    throw new Error("Unauthorized");
-  }
-  return res.json();
-}
-
-async function apiPost(path: string, body: object) {
-  const token = getToken();
-  const res = await fetch(`http://localhost:8000${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const d = await res.json();
-    throw new Error(d.detail || "Request failed");
-  }
-  return res.json();
-}
+const COUNTRIES = [
+  { value: "ZA", label: "South Africa" },
+  { value: "NO", label: "Norway" },
+  { value: "UK", label: "United Kingdom" },
+  { value: "EU", label: "European Union" },
+]
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [form, setForm] = useState({ name: "", country: "ZA", industry: "", registration_number: "" });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [form, setForm] = useState({
+    name: "",
+    country: "ZA",
+    industry: "",
+    registration_number: "",
+  })
+  const [saving, setSaving] = useState(false)
+  const { toast } = useToast()
 
   async function load() {
     try {
-      const data: Client[] = await apiGet("/api/v1/clients");
-      setClients(data);
+      const data: Client[] = await apiGet("/api/v1/clients")
+      setClients(data)
     } catch {
-      setError("Failed to load clients");
+      toast("Failed to load clients", "error")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load()
+  }, [])
 
   async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    setError("");
+    e.preventDefault()
+    setSaving(true)
     try {
-      await apiPost("/api/v1/clients", form);
-      setShowModal(false);
-      setForm({ name: "", country: "ZA", industry: "", registration_number: "" });
-      load();
+      await apiPost("/api/v1/clients", form)
+      setShowModal(false)
+      setForm({ name: "", country: "ZA", industry: "", registration_number: "" })
+      toast("Client created successfully")
+      load()
     } catch (err: any) {
-      setError(err.message);
+      toast(err.message, "error")
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
   }
 
+  const filtered = clients.filter((c) => {
+    const matchesSearch =
+      !search ||
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.industry?.toLowerCase().includes(search.toLowerCase())
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "active" && c.is_active) ||
+      (statusFilter === "inactive" && !c.is_active)
+    return matchesSearch && matchesStatus
+  })
+
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Clients</h1>
-          <p className="text-slate-500">{clients.length} client{clients.length !== 1 ? "s" : ""} total</p>
+          <h1 className="text-xl font-semibold">Clients</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {clients.length} client{clients.length !== 1 ? "s" : ""} total
+          </p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="bg-blue-600 text-white font-semibold px-5 py-2.5 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          + Add Client
-        </button>
+        <Button onClick={() => setShowModal(true)} size="sm">
+          <Plus className="h-4 w-4" />
+          Add Client
+        </Button>
       </div>
 
-      {error && (
-        <div className="mb-4 bg-red-50 text-red-700 rounded-lg px-4 py-2 text-sm">{error}</div>
-      )}
+      {/* Filters */}
+      <div className="flex items-center gap-3">
+        <div className="flex-1 max-w-xs">
+          <Input
+            placeholder="Search clients..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            icon={<Search />}
+          />
+        </div>
+        <Select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          options={[
+            { value: "all", label: "All Status" },
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+          ]}
+        />
+      </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-slate-400">Loading...</div>
-        ) : clients.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">
-            No clients yet. Add your first client to get started.
-          </div>
+      {/* Table */}
+      {loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 rounded-lg" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        clients.length === 0 ? (
+          <EmptyState
+            icon={<Building2 />}
+            title="No clients yet"
+            description="Add your first client to start managing their accounts, invoices, and reports."
+            action={{
+              label: "Add Client",
+              onClick: () => setShowModal(true),
+            }}
+          />
         ) : (
-          <table className="w-full">
-            <thead className="bg-slate-50">
-              <tr>
-                {["Name", "Country", "Industry", "Reg. Number", "Status", "Created"].map((h) => (
-                  <th key={h} className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {clients.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-900">{c.name}</td>
-                  <td className="px-6 py-4 text-slate-600">{c.country}</td>
-                  <td className="px-6 py-4 text-slate-600">{c.industry || "—"}</td>
-                  <td className="px-6 py-4 text-slate-600 font-mono text-sm">{c.registration_number || "—"}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      c.is_active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
-                    }`}>
-                      {c.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500 text-sm">
-                    {c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+          <EmptyState
+            icon={<Search />}
+            title="No results"
+            description="No clients match your current filters. Try adjusting your search."
+          />
+        )
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Client</TableHead>
+              <TableHead>Country</TableHead>
+              <TableHead>Industry</TableHead>
+              <TableHead>Reg. Number</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Created</TableHead>
+              <TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((c) => (
+              <TableRow key={c.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <Avatar name={c.name} size="sm" />
+                    <span className="font-medium">{c.name}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="text-muted-foreground">
+                    {COUNTRIES.find((co) => co.value === c.country)?.label ||
+                      c.country}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className="text-muted-foreground">
+                    {c.industry || "--"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {c.registration_number || "--"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Badge variant={c.is_active ? "success" : "secondary"}>
+                    {c.is_active ? "Active" : "Inactive"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <span className="text-muted-foreground text-xs">
+                    {c.created_at ? formatDate(c.created_at) : "--"}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Button variant="ghost" size="icon-sm">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
 
       {/* Add Client Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <h2 className="text-lg font-bold text-slate-900 mb-4">Add New Client</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Company Name *</label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Country *</label>
-                <select
-                  value={form.country}
-                  onChange={(e) => setForm({ ...form, country: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                >
-                  <option value="ZA">South Africa 🇿🇦</option>
-                  <option value="NO">Norway 🇳🇴</option>
-                  <option value="UK">United Kingdom 🇬🇧</option>
-                  <option value="EU">European Union 🇪🇺</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Industry</label>
-                <input
-                  value={form.industry}
-                  onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="e.g. Hospitality, Retail, Construction"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Registration Number</label>
-                <input
-                  value={form.registration_number}
-                  onChange={(e) => setForm({ ...form, registration_number: e.target.value })}
-                  className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="CIPC / Brønnøysund / Companies House"
-                />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : "Add Client"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <Modal open={showModal} onClose={() => setShowModal(false)}>
+        <ModalHeader onClose={() => setShowModal(false)}>
+          <ModalTitle>Add New Client</ModalTitle>
+          <ModalDescription>
+            Add a company to start managing their books
+          </ModalDescription>
+        </ModalHeader>
+        <form onSubmit={handleCreate}>
+          <ModalContent className="space-y-4">
+            <Input
+              label="Company Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="Acme Corporation"
+              icon={<Building2 />}
+              required
+            />
+            <Select
+              label="Country"
+              value={form.country}
+              onChange={(e) => setForm({ ...form, country: e.target.value })}
+              options={COUNTRIES}
+            />
+            <Input
+              label="Industry"
+              value={form.industry}
+              onChange={(e) => setForm({ ...form, industry: e.target.value })}
+              placeholder="e.g. Hospitality, Retail, Construction"
+            />
+            <Input
+              label="Registration Number"
+              value={form.registration_number}
+              onChange={(e) =>
+                setForm({ ...form, registration_number: e.target.value })
+              }
+              placeholder="CIPC / Companies House"
+              icon={<Hash />}
+              hint="Optional company registration number"
+            />
+          </ModalContent>
+          <ModalFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={saving}>
+              Add Client
+            </Button>
+          </ModalFooter>
+        </form>
+      </Modal>
     </div>
-  );
+  )
 }

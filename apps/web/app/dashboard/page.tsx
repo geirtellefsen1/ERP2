@@ -1,169 +1,239 @@
-"use client";
-import { useEffect, useState } from "react";
-import Link from "next/link";
+"use client"
 
-interface Stats {
-  total_clients: number;
-  active_clients: number;
-  pending_tasks: number;
-  overdue_invoices: number;
-}
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import {
+  Users,
+  FileText,
+  Landmark,
+  BarChart3,
+  ArrowUpRight,
+  Plus,
+  ArrowRight,
+  Clock,
+  AlertTriangle,
+  TrendingUp,
+  Wallet,
+} from "lucide-react"
+import { apiGet } from "@/lib/api"
+import { formatCurrency, formatDate } from "@/lib/utils"
+import { MetricCard } from "@/components/ui/metric-card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Avatar } from "@/components/ui/avatar"
 
 interface Client {
-  id: number;
-  name: string;
-  country: string;
-  industry: string;
-  is_active: boolean;
-}
-
-function getToken() {
-  return typeof window !== "undefined" ? localStorage.getItem("bpo_token") : null;
-}
-
-async function apiGet(path: string) {
-  const token = getToken();
-  const res = await fetch(`http://localhost:8000${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (res.status === 401) {
-    window.location.href = "/login";
-    throw new Error("Unauthorized");
-  }
-  return res.json();
+  id: number
+  name: string
+  country: string
+  industry: string
+  is_active: boolean
+  created_at: string
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [recentClients, setRecentClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
+  const [greeting, setGreeting] = useState("")
 
   useEffect(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) setGreeting("Good morning")
+    else if (hour < 18) setGreeting("Good afternoon")
+    else setGreeting("Good evening")
+
     async function load() {
       try {
-        const clients: Client[] = await apiGet("/api/v1/clients");
-        setRecentClients(clients.slice(0, 5));
-        setStats({
-          total_clients: clients.length,
-          active_clients: clients.filter((c) => c.is_active).length,
-          pending_tasks: 0,
-          overdue_invoices: 0,
-        });
+        const data: Client[] = await apiGet("/api/v1/clients")
+        setClients(data)
       } catch {
-        // API not available or not authenticated
-        setStats({ total_clients: 0, active_clients: 0, pending_tasks: 0, overdue_invoices: 0 });
+        // API not available
       } finally {
-        setLoading(false);
+        setLoading(false)
       }
     }
-    load();
-  }, []);
+    load()
+  }, [])
 
-  const statCards = [
-    { label: "Total Clients", value: stats?.total_clients ?? "—", emoji: "🏢" },
-    { label: "Active Clients", value: stats?.active_clients ?? "—", emoji: "✅" },
-    { label: "Pending Tasks", value: stats?.pending_tasks ?? "—", emoji: "⏳" },
-    { label: "Overdue Invoices", value: stats?.overdue_invoices ?? "—", emoji: "⚠️" },
-  ];
+  const activeClients = clients.filter((c) => c.is_active).length
 
   return (
-    <div className="p-8">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Agency Dashboard</h1>
-        <p className="text-slate-500 mt-1">Welcome back — here is what is happening today.</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {statCards.map((card) => (
-          <div key={card.label} className="bg-white rounded-xl p-5 shadow-sm border border-slate-100">
-            <div className="text-3xl mb-2">{card.emoji}</div>
-            <div className="text-2xl font-bold text-slate-900">
-              {loading ? "…" : card.value}
-            </div>
-            <div className="text-sm text-slate-500">{card.label}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Quick links */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Link
-          href="/dashboard/clients"
-          className="bg-blue-50 border border-blue-100 rounded-xl p-5 hover:bg-blue-100 transition-colors"
-        >
-          <div className="text-xl mb-1">🏢</div>
-          <div className="font-semibold text-blue-900">Manage Clients</div>
-          <div className="text-sm text-blue-600">View, add and edit client companies</div>
-        </Link>
-        <Link
-          href="/dashboard/tasks"
-          className="bg-green-50 border border-green-100 rounded-xl p-5 hover:bg-green-100 transition-colors"
-        >
-          <div className="text-xl mb-1">✅</div>
-          <div className="font-semibold text-green-900">Task Queue</div>
-          <div className="text-sm text-green-600">Manage SLA tasks and assignments</div>
-        </Link>
-        <Link
-          href="/dashboard/reports"
-          className="bg-purple-50 border border-purple-100 rounded-xl p-5 hover:bg-purple-100 transition-colors"
-        >
-          <div className="text-xl mb-1">📊</div>
-          <div className="font-semibold text-purple-900">Reports</div>
-          <div className="text-sm text-purple-600">P&L, Cashflow, Compliance</div>
-        </Link>
-      </div>
-
-      {/* Recent clients */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">Recent Clients</h2>
-          <Link href="/dashboard/clients" className="text-sm text-blue-600 hover:text-blue-700">
-            View all →
-          </Link>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">{greeting}</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Here is an overview of your agency today.
+          </p>
         </div>
-        {loading ? (
-          <div className="p-6 text-slate-400 text-center">Loading...</div>
-        ) : recentClients.length === 0 ? (
-          <div className="p-6 text-slate-400 text-center">
-            No clients yet.{" "}
-            <Link href="/dashboard/clients" className="text-blue-600">
-              Add your first client
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/dashboard/reports">
+              <BarChart3 className="h-4 w-4" />
+              Reports
             </Link>
-          </div>
-        ) : (
-          <table className="w-full">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Name</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Country</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Industry</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {recentClients.map((client) => (
-                <tr key={client.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-900">{client.name}</td>
-                  <td className="px-6 py-4 text-slate-600">{client.country}</td>
-                  <td className="px-6 py-4 text-slate-600">{client.industry || "—"}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        client.is_active
-                          ? "bg-green-100 text-green-700"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {client.is_active ? "Active" : "Inactive"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          </Button>
+          <Button size="sm" asChild>
+            <Link href="/dashboard/clients">
+              <Plus className="h-4 w-4" />
+              New Client
+            </Link>
+          </Button>
+        </div>
       </div>
+
+      {/* Metric Cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <MetricCard
+            title="Total Clients"
+            value={clients.length.toString()}
+            change={12}
+            changeLabel="vs last month"
+            icon={<Users />}
+          />
+          <MetricCard
+            title="Active Clients"
+            value={activeClients.toString()}
+            change={activeClients > 0 ? 8 : 0}
+            changeLabel="vs last month"
+            icon={<TrendingUp />}
+          />
+          <MetricCard
+            title="Outstanding"
+            value={formatCurrency(0)}
+            change={0}
+            changeLabel="vs last month"
+            icon={<Wallet />}
+          />
+          <MetricCard
+            title="Overdue Invoices"
+            value="0"
+            change={0}
+            changeLabel="vs last month"
+            icon={<AlertTriangle />}
+          />
+        </div>
+      )}
+
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Quick Actions */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1.5">
+            {[
+              { href: "/dashboard/invoices", label: "Create Invoice", icon: FileText, desc: "Bill a client" },
+              { href: "/dashboard/expenses", label: "Log Expense", icon: Wallet, desc: "Record a cost" },
+              { href: "/dashboard/banking", label: "Reconcile", icon: Landmark, desc: "Match transactions" },
+              { href: "/dashboard/reports", label: "View Reports", icon: BarChart3, desc: "P&L & more" },
+            ].map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-accent transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                  <action.icon className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{action.label}</p>
+                  <p className="text-2xs text-muted-foreground">{action.desc}</p>
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+
+        {/* Recent Clients */}
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle>Recent Clients</CardTitle>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/dashboard/clients">
+                View all
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 rounded-md" />
+                ))}
+              </div>
+            ) : clients.length === 0 ? (
+              <div className="text-center py-8">
+                <Users className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  No clients yet.{" "}
+                  <Link
+                    href="/dashboard/clients"
+                    className="text-primary hover:underline"
+                  >
+                    Add your first client
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {clients.slice(0, 6).map((client) => (
+                  <div
+                    key={client.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-accent/50 transition-colors"
+                  >
+                    <Avatar name={client.name} size="sm" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {client.name}
+                      </p>
+                      <p className="text-2xs text-muted-foreground">
+                        {client.industry || client.country}
+                      </p>
+                    </div>
+                    <Badge variant={client.is_active ? "success" : "secondary"}>
+                      {client.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Activity / Timeline */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle>Recent Activity</CardTitle>
+          <Badge variant="secondary">
+            <Clock className="h-3 w-3 mr-1" />
+            Today
+          </Badge>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8">
+            <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm font-medium">No recent activity</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Activity from your team will appear here
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }

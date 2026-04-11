@@ -1,9 +1,10 @@
-import type { Metadata } from 'next'
-import './globals.css'
+import type { Metadata } from "next"
+import "./globals.css"
+import { ToastProvider } from "@/components/ui/toast"
 
 export const metadata: Metadata = {
-  title: 'BPO Nexus',
-  description: 'AI-First Business Process Outsourcing Platform',
+  title: "BPO Nexus",
+  description: "AI-First Business Process Outsourcing Platform",
 }
 
 export default function RootLayout({
@@ -12,8 +13,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-slate-50">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   )
 }
