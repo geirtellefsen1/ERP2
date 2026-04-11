@@ -1,14 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, EmailStr
 from app.db.session import get_db
-from app.auth.schemas import UserCreate, UserResponse
+from app.auth.schemas import UserCreate, UserResponse, TokenResponse
 from app.auth.auth0_client import Auth0Client
 from app.auth.middleware import get_current_user, MultiTenantContext, security
 from app.models import User, Agency
 from passlib.hash import bcrypt
+import jwt
+import os
+import time
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 auth0 = Auth0Client()
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -38,6 +47,38 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
     db.refresh(db_user)
 
     return db_user
+
+
+@router.post("/login", response_model=TokenResponse)
+async def login(payload: LoginRequest, db: Session = Depends(get_db)):
+    """Authenticate user with email/password and return JWT."""
+    user = db.query(User).filter(User.email == payload.email).first()
+    if not user or not bcrypt.verify(payload.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled",
+        )
+
+    secret = os.getenv("AUTH0_CLIENT_SECRET", "dev-secret")
+    now = int(time.time())
+    token_payload = {
+        "sub": str(user.id),
+        "email": user.email,
+        "name": user.full_name or "",
+        "agency_id": user.agency_id,
+        "role": user.role,
+        "permissions": [],
+        "iat": now,
+        "exp": now + 86400,  # 24 hours
+    }
+    access_token = jwt.encode(token_payload, secret, algorithm="HS256")
+
+    return TokenResponse(access_token=access_token, token_type="bearer")
 
 
 @router.get("/me", response_model=UserResponse)

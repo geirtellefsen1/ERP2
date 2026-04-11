@@ -18,9 +18,14 @@ origins = [
     os.getenv("FRONTEND_URL", "http://localhost:3000"),
 ]
 
+# Allow any explicitly set CORS origins from env
+extra_origins = os.getenv("CORS_ORIGINS", "")
+if extra_origins:
+    origins.extend([o.strip() for o in extra_origins.split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
