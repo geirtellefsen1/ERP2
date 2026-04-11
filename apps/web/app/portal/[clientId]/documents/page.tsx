@@ -36,7 +36,7 @@ export default function DocumentsPage() {
 
   async function uploadFiles(files: FileList) {
     setUploading(true);
-    const uploaded = [];
+    const uploaded: Array<{id: number; name: string; category: string; uploaded_at: string; size: number}> = [];
     for (const file of Array.from(files)) {
       // In production: POST to /api/v1/documents/{clientId}/upload
       uploaded.push({
