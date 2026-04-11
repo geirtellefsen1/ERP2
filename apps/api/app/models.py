@@ -194,3 +194,44 @@ class JournalLine(Base):
 
     entry = relationship("JournalEntry", back_populates="lines")
     account = relationship("Account")
+
+
+# ─── Sprint 7: Bank Reconciliation ──────────────────────────────────────────────
+
+class BankAccount(Base):
+    """Bank account linked to a client"""
+    __tablename__ = "bank_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    bank_name = Column(String(100))
+    account_number = Column(String(50))
+    account_type = Column(String(20))  # checking, savings
+    currency = Column(String(3), default="ZAR")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    client = relationship("Client")
+    transactions = relationship("BankTransaction", back_populates="account")
+
+
+class BankTransaction(Base):
+    """Individual bank transaction imported from Open Banking or manual"""
+    __tablename__ = "bank_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("bank_accounts.id"), nullable=False)
+    external_id = Column(String(255))  # TrueLayer transaction ID
+    date = Column(DateTime(timezone=True), nullable=False)
+    description = Column(Text)
+    amount = Column(Numeric(14, 2), nullable=False)  # positive = inflow, negative = outflow
+    reference = Column(String(255))
+    category = Column(String(100))  # e.g. "payroll", "invoice", "transfer"
+    status = Column(String(20), default="unmatched")  # unmatched, matched, disputed
+    matched_invoice_id = Column(Integer, ForeignKey("invoices.id"), nullable=True)
+    matched_journal_line_id = Column(Integer, ForeignKey("journal_lines.id"), nullable=True)
+    match_confidence = Column(Numeric(5, 4))  # 0.0 to 1.0
+    match_reason = Column(Text)  # AI explanation
+    imported_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    account = relationship("BankAccount", back_populates="transactions")
