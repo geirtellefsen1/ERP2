@@ -89,7 +89,7 @@ def _generate_norway_mva(data: dict) -> str:
 
     SubElement(root, "Currency").text = data.get("currency", "NOK")
 
-    return tostring(root, encoding="unicode", xml_declaration=True)
+    return '<?xml version="1.0" encoding="utf-8"?>\n' + tostring(root, encoding="unicode")
 
 
 def _generate_south_africa_vat201(data: dict) -> str:
@@ -120,7 +120,7 @@ def _generate_uk_mtd(data: dict) -> str:
         "vatDueAcquisitions": 0.0,
         "totalVatDue": data["output_vat"],
         "vatReclaimedCurrPeriod": data["input_vat"],
-        "netVatDue": abs(data["net_vat_payable"]),
+        "netVatDue": data["net_vat_payable"],
         "totalValueSalesExVAT": data["total_sales"],
         "totalValuePurchasesExVAT": data["total_purchases"],
         "totalValueGoodsSuppliedExVAT": 0.0,
@@ -150,7 +150,7 @@ def _generate_eu_vat_return(data: dict) -> str:
 
     SubElement(root, "Currency").text = data.get("currency", "EUR")
 
-    return tostring(root, encoding="unicode", xml_declaration=True)
+    return '<?xml version="1.0" encoding="utf-8"?>\n' + tostring(root, encoding="unicode")
 
 
 def get_upcoming_deadlines(

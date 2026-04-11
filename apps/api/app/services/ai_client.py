@@ -11,7 +11,7 @@ class ClaudeClient:
         self,
         system_prompt: str,
         user_message: str,
-        model: str = "claude-sonnet-4-20250514",
+        model: str = "claude-sonnet-4-20250514",  # Updated at call site; falls back to mock without API key
         max_tokens: int = 4096,
     ) -> str:
         """Send a message to the Claude API and return the response text.

@@ -133,8 +133,8 @@ class ChatService:
         """
         citations = []
         patterns = [
-            r"\[source:\s*(\w+)/(\w+)\]",
-            r"\[doc:\s*(\w+)/(\w+)\]",
+            r"\[source:\s*([\w-]+)/([\w-]+)\]",
+            r"\[doc:\s*([\w-]+)/([\w-]+)\]",
         ]
         for pattern in patterns:
             matches = re.findall(pattern, text)

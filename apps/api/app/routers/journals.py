@@ -19,6 +19,9 @@ from app.services.journal_validator import validate_entry
 
 router = APIRouter(prefix="/journals", tags=["journals"])
 
+# Account types where credits increase balance (credit-normal)
+CREDIT_NORMAL_TYPES = {"liability", "equity", "revenue"}
+
 
 def _generate_entry_number() -> str:
     """Generate a unique journal entry number."""
@@ -153,12 +156,18 @@ async def post_journal(
     if not entry.is_balanced:
         raise HTTPException(status_code=400, detail="Entry is not balanced")
 
-    # Update account balances
+    # Update account balances (debit-normal vs credit-normal accounts)
+    # Assets & Expenses: debit increases, credit decreases (debit - credit)
+    # Liabilities, Equity & Revenue: credit increases, debit decreases (credit - debit)
+    credit_normal_types = CREDIT_NORMAL_TYPES
     for line in entry.lines:
         account = db.query(Account).filter(Account.id == line.account_id).first()
         if account:
             current_balance = account.balance or Decimal("0")
-            account.balance = current_balance + line.debit_amount - line.credit_amount
+            if account.account_type in credit_normal_types:
+                account.balance = current_balance + line.credit_amount - line.debit_amount
+            else:
+                account.balance = current_balance + line.debit_amount - line.credit_amount
 
     entry.status = "posted"
     db.commit()
@@ -211,11 +220,14 @@ async def reverse_journal(
         )
         db.add(reversed_line)
 
-        # Update account balances
+        # Update account balances (reverse the original posting)
         account = db.query(Account).filter(Account.id == line.account_id).first()
         if account:
             current_balance = account.balance or Decimal("0")
-            account.balance = current_balance + line.credit_amount - line.debit_amount
+            if account.account_type in credit_normal_types:
+                account.balance = current_balance + line.debit_amount - line.credit_amount
+            else:
+                account.balance = current_balance + line.credit_amount - line.debit_amount
 
     original.status = "reversed"
     original.reversed_by = reversing.id

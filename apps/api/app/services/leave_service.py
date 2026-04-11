@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+from decimal import Decimal
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from app.models.leave import LeaveRequest, LeaveBalance, LeaveType
@@ -103,9 +104,23 @@ def approve_request(request_id: int, approver_id: int, db: Session) -> LeaveRequ
         LeaveBalance.calendar_year == year,
     ).first()
 
-    if balance:
-        balance.used = float(balance.used) + leave_request.business_days
-        balance.closing_balance = float(balance.entitlements) + float(balance.opening_balance) - float(balance.used)
+    if not balance:
+        # Auto-create balance record with default 21-day entitlement
+        balance = LeaveBalance(
+            employee_id=leave_request.employee_id,
+            leave_type_id=leave_request.leave_type_id,
+            calendar_year=year,
+            opening_balance=Decimal("0"),
+            entitlements=Decimal("21"),
+            used=Decimal("0"),
+            closing_balance=Decimal("21"),
+        )
+        db.add(balance)
+        db.flush()
+
+    days = Decimal(str(leave_request.business_days))
+    balance.used = (balance.used or Decimal("0")) + days
+    balance.closing_balance = (balance.entitlements or Decimal("0")) + (balance.opening_balance or Decimal("0")) - balance.used
 
     db.commit()
     db.refresh(leave_request)
