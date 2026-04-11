@@ -275,3 +275,82 @@ class DocumentIntelligence(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     document = relationship("Document")
+
+
+# ─── Sprint 14: South Africa Payroll ──────────────────────────────────────────
+
+class Employee(Base):
+    """Employee at a client company"""
+    __tablename__ = "employees"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    employee_number = Column(String(50), unique=True)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+    id_number = Column(String(13))  # SA ID number
+    tax_number = Column(String(10))
+    uif_number = Column(String(10))
+    employment_type = Column(String(20), default="permanent")  # permanent, contract, casual
+    department = Column(String(100))
+    position = Column(String(100))
+    join_date = Column(DateTime(timezone=True))
+    leave_date = Column(DateTime(timezone=True))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    client = relationship("Client")
+    payslips = relationship("Payslip", back_populates="employee")
+
+
+class PayrollPeriod(Base):
+    """Payroll period definition"""
+    __tablename__ = "payroll_periods"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    year = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)
+    period_start = Column(DateTime(timezone=True), nullable=False)
+    period_end = Column(DateTime(timezone=True), nullable=False)
+    status = Column(String(20), default="open")  # open, processing, submitted, paid
+    pay_date = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    client = relationship("Client")
+
+
+class Payslip(Base):
+    """Individual payslip for an employee in a payroll run"""
+    __tablename__ = "payslips"
+
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees.id"), nullable=False)
+    payroll_run_id = Column(Integer, ForeignKey("payroll_runs.id"), nullable=False)
+    period_id = Column(Integer, ForeignKey("payroll_periods.id"), nullable=False)
+
+    # Earnings
+    gross_salary = Column(Numeric(12, 2), nullable=False)
+    total_earnings = Column(Numeric(12, 2), nullable=False)
+
+    # Deductions
+    paye = Column(Numeric(12, 2), default=0)
+    uif_employee = Column(Numeric(12, 2), default=0)
+    uif_employer = Column(Numeric(12, 2), default=0)
+    sdl = Column(Numeric(12, 2), default=0)
+    pension = Column(Numeric(12, 2), default=0)
+    medical_aid = Column(Numeric(12, 2), default=0)
+    other_deductions = Column(Numeric(12, 2), default=0)
+
+    # Net
+    total_deductions = Column(Numeric(12, 2), nullable=False)
+    net_salary = Column(Numeric(12, 2), nullable=False)
+
+    # ETI (Employment Tax Incentive)
+    eti_amount = Column(Numeric(12, 2), default=0)
+
+    status = Column(String(20), default="draft")  # draft, approved, paid
+    paid_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    employee = relationship("Employee", back_populates="payslips")
