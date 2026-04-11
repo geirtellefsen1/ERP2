@@ -254,3 +254,24 @@ class Document(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     client = relationship("Client")
+
+
+# ─── Sprint 10: Document Intelligence ─────────────────────────────────────────
+
+class DocumentIntelligence(Base):
+    """AI-extracted data from a document"""
+    __tablename__ = "document_intelligence"
+
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False)
+    extraction_model = Column(String(50))  # aws_textract, claude_vision
+    raw_text = Column(Text)
+    extracted_data = Column(Text)  # JSON string
+    confidence_score = Column(Numeric(5, 4))  # 0.0 to 1.0
+    is_fraud_flagged = Column(Boolean, default=False)
+    fraud_reasons = Column(Text)  # JSON array
+    status = Column(String(20), default="pending")  # pending, processing, complete, failed
+    processed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    document = relationship("Document")
