@@ -354,3 +354,182 @@ class Payslip(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     employee = relationship("Employee", back_populates="payslips")
+
+
+# ─── Sprint 15: Norway Payroll ──────────────────────────────────────────────────
+
+class EmployeeNO(Base):
+    """Norwegian employee with tax card and OTP data"""
+    __tablename__ = "employees_no"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    first_name = Column(String(100), nullable=False)
+    last_name = Column(String(100), nullable=False)
+    national_id = Column(String(11))  # 11-digit fødselsnummer or D-nummer
+    tax_withholding_table = Column(String(10))  # Skattekort tabellnummer
+    basis_tax = Column(Numeric(12, 2))  # Skattetrekksgrunnlag
+    employee_type = Column(String(20))  # primary, secondary, pensioner
+    account_number = Column(String(11))  # Norwegian bank account
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    client = relationship("Client")
+
+
+class HolidayAccumulation(Base):
+    """Holiday pay accumulation tracking per employee"""
+    __tablename__ = "holiday_accumulations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey("employees_no.id"), nullable=False)
+    year = Column(Integer, nullable=False)
+    days_accumulated = Column(Numeric(5, 2), default=0)  # days
+    days_taken = Column(Numeric(5, 2), default=0)
+    holiday_pay_rate = Column(Numeric(4, 3), default=Decimal("0.124"))  # 12.4% of gross
+    carried_forward = Column(Numeric(5, 2), default=0)  # days carried from prev year
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    employee = relationship("EmployeeNO")
+
+
+# ─── Sprint 16: Leave Management ───────────────────────────────────────────────
+
+class LeaveType(Base):
+    __tablename__ = "leave_types"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(50), nullable=False)  # Annual, Sick, Maternity, etc.
+    country = Column(String(3))  # ZA, NO, UK
+    default_days = Column(Integer, default=0)
+    paid = Column(Boolean, default=True)
+
+class LeaveBalance(Base):
+    __tablename__ = "leave_balances"
+    id = Column(Integer, primary_key=True)
+    employee_id = Column(Integer, nullable=False)  # Works for both ZA and NO employees
+    leave_type_id = Column(Integer, ForeignKey("leave_types.id"), nullable=False)
+    year = Column(Integer, nullable=False)
+    entitled_days = Column(Numeric(5, 2), default=0)
+    used_days = Column(Numeric(5, 2), default=0)
+    pending_days = Column(Numeric(5, 2), default=0)
+
+class LeaveApplication(Base):
+    __tablename__ = "leave_applications"
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, nullable=False)
+    leave_type_id = Column(Integer, ForeignKey("leave_types.id"), nullable=False)
+    start_date = Column(DateTime(timezone=True), nullable=False)
+    end_date = Column(DateTime(timezone=True), nullable=False)
+    days_requested = Column(Numeric(5, 2), nullable=False)
+    status = Column(String(20), default="pending")  # pending, approved, rejected
+    approved_by = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ─── Sprint 17: Statutory Filing ──────────────────────────────────────────────
+
+class TaxFiling(Base):
+    """Statutory tax filing (VAT, PAYE, A-melding)"""
+    __tablename__ = "tax_filings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    filing_type = Column(String(30), nullable=False)  # vat_sa, paye_sa, amelding_no, vat_uk
+    period_year = Column(Integer, nullable=False)
+    period_month = Column(Integer, nullable=False)
+    amount = Column(Numeric(14, 2), default=0)
+    status = Column(String(20), default="draft")  # draft, filed, accepted, rejected
+    filed_at = Column(DateTime(timezone=True))
+    reference = Column(String(100))  # Filing reference from tax authority
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    client = relationship("Client")
+
+
+# ─── Sprint 18: Hospitality Module ────────────────────────────────────────────
+
+class PMSConnection(Base):
+    """PMS (Property Management System) integration"""
+    __tablename__ = "pms_connections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    pms_type = Column(String(50))  # opera, micros, cloudbeds, etc.
+    api_key = Column(String(255))
+    property_id = Column(String(100))
+    is_active = Column(Boolean, default=True)
+    last_sync = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    client = relationship("Client")
+
+
+class RoomType(Base):
+    __tablename__ = "room_types"
+    id = Column(Integer, primary_key=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    name = Column(String(100))  # Standard Room, Suite, Deluxe
+    short_code = Column(String(10))
+    total_rooms = Column(Integer, default=0)
+
+
+class DailyRevenue(Base):
+    """Daily room revenue snapshot"""
+    __tablename__ = "daily_revenue"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    date = Column(DateTime(timezone=True), nullable=False)
+    room_type_id = Column(Integer, ForeignKey("room_types.id"))
+    rooms_sold = Column(Integer, default=0)
+    average_rate = Column(Numeric(10, 2), default=0)  # ADR
+    revpar = Column(Numeric(10, 2), default=0)  # Revenue Per Available Room
+    food_revenue = Column(Numeric(12, 2), default=0)
+    beverage_revenue = Column(Numeric(12, 2), default=0)
+    other_revenue = Column(Numeric(12, 2), default=0)
+    total_revenue = Column(Numeric(12, 2), default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+# ─── Sprint 19: Professional Services ─────────────────────────────────────────
+
+class Matter(Base):
+    """Legal/consulting matter"""
+    __tablename__ = "matters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    matter_number = Column(String(20), unique=True, nullable=False)
+    title = Column(String(255))
+    type = Column(String(50))  # litigation, advisory, corporate, tax
+    rate_type = Column(String(20))  # fixed, hourly, contingency
+    hourly_rate = Column(Numeric(12, 2))
+    trust_account = Column(String(50))  # Trust account number
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    client = relationship("Client")
+
+
+class TimeEntry(Base):
+    __tablename__ = "time_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    matter_id = Column(Integer, ForeignKey("matters.id"), nullable=False)
+    employee_id = Column(Integer, nullable=False)
+    date = Column(DateTime(timezone=True), nullable=False)
+    hours = Column(Numeric(5, 2), nullable=False)
+    rate = Column(Numeric(12, 2), nullable=False)
+    description = Column(Text)
+    invoiced = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class TrustTransaction(Base):
+    __tablename__ = "trust_transactions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    matter_id = Column(Integer, ForeignKey("matters.id"), nullable=False)
+    transaction_type = Column(String(20))  # deposit, withdrawal, transfer
+    amount = Column(Numeric(12, 2), nullable=False)
+    reference = Column(String(100))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
