@@ -312,7 +312,7 @@ def list_transactions(
 # ─── TrueLayer Open Banking (UK/EU) ─────────────────────────────────────────────
 
 @router.get("/providers/{country}")
-async def list_providers(country: str = Query(...)):
+async def list_providers(country: str):
     """
     List available Open Banking providers for a country.
     UK: uses TrueLayer
