@@ -2,6 +2,16 @@ FROM node:20-alpine AS base
 
 FROM base AS builder
 WORKDIR /app
+
+# NEXT_PUBLIC_* env vars are baked into the JS bundle at BUILD time, not at
+# runtime. The deployment must pass --build-arg NEXT_PUBLIC_API_URL=https://...
+# pointing at the publicly-reachable API URL, otherwise the browser will try
+# to call http://localhost:8000 from the user's machine and fail.
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+
 COPY package.json pnpm-lock.yaml* ./
 RUN corepack enable && corepack prepare pnpm@9 --activate && pnpm install --frozen-lockfile
 COPY apps/web/package.json apps/web/
@@ -23,5 +33,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
 CMD ["node", "server.js"]
