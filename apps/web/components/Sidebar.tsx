@@ -80,13 +80,14 @@ export default function Sidebar() {
       )}
     >
       {/* Header / Workspace Switcher */}
-      <div className="flex items-center gap-3 px-3 py-3 border-b border-sidebar-border">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-sm shrink-0">
-          N
+      <div className="flex items-center gap-2 px-3 py-3 border-b border-sidebar-border">
+        <div className="flex items-center justify-center h-8 w-8 shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.svg" alt="ClaudERP" className="h-7 w-auto" />
         </div>
         {!collapsed && (
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">BPO Nexus</p>
+            <p className="text-sm font-semibold truncate">ClaudERP</p>
             <p className="text-2xs text-muted-foreground truncate">
               {user?.agency_id || "Workspace"}
             </p>

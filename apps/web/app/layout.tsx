@@ -3,8 +3,11 @@ import "./globals.css"
 import { ToastProvider } from "@/components/ui/toast"
 
 export const metadata: Metadata = {
-  title: "BPO Nexus",
-  description: "AI-First Business Process Outsourcing Platform",
+  title: {
+    default: "ClaudERP",
+    template: "%s · ClaudERP",
+  },
+  description: "AI-first accounting and BPO platform by Saga Advisory",
 }
 
 export default function RootLayout({

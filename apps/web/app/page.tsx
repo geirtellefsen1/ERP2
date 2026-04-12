@@ -11,19 +11,21 @@ import {
   Users,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { GoogleIcon, MicrosoftIcon } from "@/components/ui/brand-icons"
+import { Logo } from "@/components/ui/logo"
+import { API_BASE } from "@/lib/utils"
 
 export default function HomePage() {
+  function startOAuth(provider: "google" | "microsoft") {
+    window.location.href = `${API_BASE}/api/v1/auth/${provider}/login`
+  }
+
   return (
     <main className="min-h-screen">
       {/* Nav */}
       <header className="border-b">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-              N
-            </div>
-            <span className="font-semibold">BPO Nexus</span>
-          </div>
+          <Logo size="sm" href="/" />
           <Button size="sm" asChild>
             <Link href="/login">
               Sign In
@@ -40,7 +42,7 @@ export default function HomePage() {
             <Sparkles className="h-3 w-3 text-primary" />
             AI-powered accounting platform
           </div>
-          <h1 className="text-4xl font-bold tracking-tight leading-[1.15] mb-4">
+          <h1 className="text-4xl sm:text-5xl font-bold tracking-tight leading-[1.1] mb-4">
             Modern accounting
             <br />
             for BPO agencies
@@ -49,7 +51,7 @@ export default function HomePage() {
             Manage clients, automate bookkeeping, reconcile bank transactions,
             and generate insights — all powered by AI.
           </p>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3 mb-6">
             <Button size="lg" asChild>
               <Link href="/login">
                 Get Started
@@ -60,11 +62,54 @@ export default function HomePage() {
               Learn More
             </Button>
           </div>
+
+          {/* Quick OAuth sign-in — no registration form needed */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              Or sign in instantly with
+            </span>
+            <button
+              onClick={() => startOAuth("google")}
+              className="flex items-center gap-2 h-9 px-4 rounded-md border bg-card text-sm font-medium hover:bg-accent transition-colors"
+            >
+              <GoogleIcon className="h-4 w-4" />
+              Google
+            </button>
+            <button
+              onClick={() => startOAuth("microsoft")}
+              className="flex items-center gap-2 h-9 px-4 rounded-md border bg-card text-sm font-medium hover:bg-accent transition-colors"
+            >
+              <MicrosoftIcon className="h-4 w-4" />
+              Microsoft
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust badge */}
+      <section className="border-t border-b bg-muted/30">
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-10">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Works seamlessly with
+            </p>
+            <div className="flex items-center gap-6 sm:gap-10">
+              <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                <GoogleIcon className="h-5 w-5" />
+                <span className="font-medium">Google Workspace</span>
+              </div>
+              <div className="w-px h-6 bg-border" />
+              <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+                <MicrosoftIcon className="h-5 w-5" />
+                <span className="font-medium">Microsoft 365</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="border-t bg-muted/30">
+      <section className="bg-background">
         <div className="max-w-5xl mx-auto px-6 py-16">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-8">
             Everything you need
@@ -99,7 +144,7 @@ export default function HomePage() {
               {
                 icon: Shield,
                 title: "Enterprise Security",
-                desc: "JWT + Auth0 authentication, RBAC, and encrypted data at rest.",
+                desc: "SSO with Google + Microsoft, encrypted at rest, JWT-based auth.",
               },
             ].map((feature) => (
               <div
@@ -121,7 +166,7 @@ export default function HomePage() {
       <footer className="border-t">
         <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between text-xs text-muted-foreground">
           <span>Saga Advisory AS</span>
-          <span>BPO Nexus v1.4.0</span>
+          <span>ClaudERP v1.4.0</span>
         </div>
       </footer>
     </main>

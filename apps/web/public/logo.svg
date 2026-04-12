@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" fill="none">
+  <!--
+    PLACEHOLDER LOGO — "SE" monogram approximation for ClaudERP / Saga Advisory.
+    Replace this entire file with the real PNG or SVG when ready; the file path
+    (/logo.svg) is referenced by apps/web/components/ui/logo.tsx.
+  -->
+  <text
+    x="10"
+    y="130"
+    font-family="Inter, system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-size="150"
+    font-weight="900"
+    letter-spacing="-6"
+    fill="#1E40AF"
+  >S</text>
+  <text
+    x="100"
+    y="130"
+    font-family="Inter, system-ui, -apple-system, 'Segoe UI', sans-serif"
+    font-size="150"
+    font-weight="900"
+    letter-spacing="-6"
+    fill="#0EA5E9"
+  >E</text>
+</svg>
