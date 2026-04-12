@@ -1,7 +1,24 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from app.routers import agencies, clients, users, auth, accounts, journal, bank, reports, documents, ai, agent, payroll
+from app.config import get_settings
+from app.routers import (
+    agencies,
+    clients,
+    users,
+    auth,
+    oauth,
+    accounts,
+    journal,
+    bank,
+    reports,
+    documents,
+    ai,
+    agent,
+    payroll,
+)
+
+settings = get_settings()
 
 app = FastAPI(
     title="BPO Nexus API",
@@ -9,15 +26,21 @@ app = FastAPI(
     description="AI-First Business Process Outsourcing Platform",
 )
 
+# CORS — allow the frontend (and any other origins listed in CORS_ORIGINS env var)
+allowed_origins = [
+    o.strip() for o in settings.cors_origins.split(",") if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 app.include_router(auth.router)
+app.include_router(oauth.router)
 app.include_router(agencies.router)
 app.include_router(clients.router)
 app.include_router(users.router)
