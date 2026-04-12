@@ -14,6 +14,15 @@ Run inside the API container:
 Or locally (with .env loaded):
     cd apps/api && python scripts/seed.py
 
+Force re-seed (wipes existing demo agency and all dependent data):
+    docker run --rm --env-file /etc/claud-erp/.env \\
+      --network claud-erp \\
+      registry.digitalocean.com/claud-erp/api:<TAG> \\
+      python scripts/seed.py --force
+
+Use --force when a previous seed was interrupted (e.g. before migration
+004 was applied) and left an empty demo agency with no clients.
+
 Login credentials created:
     Email:    demo@claud-erp.com
     Password: demo1234
@@ -210,16 +219,125 @@ def calc_sdl(monthly_gross: float) -> float:
     return round(monthly_gross * 0.01, 2)
 
 
+# ─── Wipe helper (used by --force) ────────────────────────────────────────────
+
+def wipe_demo_data(db: Session) -> bool:
+    """
+    Delete the ClaudERP demo agency and all dependent rows in reverse
+    dependency order. Returns True if anything was deleted.
+
+    Uses raw SQL with explicit cascading so it works even if a migration
+    didn't set ON DELETE CASCADE on some foreign keys.
+    """
+    from sqlalchemy import text
+
+    result = db.execute(
+        text("SELECT id FROM agencies WHERE slug = :slug"),
+        {"slug": "claud-erp-demo"},
+    ).first()
+    if not result:
+        print("ℹ No existing demo agency found — nothing to wipe.")
+        return False
+
+    agency_id = result[0]
+    print(f"⚠ --force: wiping existing demo agency (id={agency_id}) and all dependent rows...")
+
+    # Fetch client IDs so we can scope the nested deletes
+    client_rows = db.execute(
+        text("SELECT id FROM clients WHERE agency_id = :aid"),
+        {"aid": agency_id},
+    ).fetchall()
+    client_ids = [r[0] for r in client_rows]
+
+    # Delete in strict reverse dependency order. Each DELETE is wrapped in
+    # a try/except because some tables may not exist in older databases
+    # (e.g. if migration 004 hasn't run yet).
+    def safe_exec(sql: str, params: dict | None = None):
+        try:
+            db.execute(text(sql), params or {})
+        except Exception as e:
+            # Table might not exist — log and continue
+            print(f"   (skipped: {sql[:60]}... — {type(e).__name__})")
+            db.rollback()
+            # Re-open transaction — SQLAlchemy auto-begins on next execute
+
+    if client_ids:
+        ids_csv = ",".join(str(i) for i in client_ids)
+
+        # Payroll chain (Sprint 14 tables — may not exist pre-migration 004)
+        safe_exec(
+            f"DELETE FROM payslips WHERE employee_id IN "
+            f"(SELECT id FROM employees WHERE client_id IN ({ids_csv}))"
+        )
+        safe_exec(f"DELETE FROM payroll_periods WHERE client_id IN ({ids_csv})")
+        safe_exec(f"DELETE FROM employees WHERE client_id IN ({ids_csv})")
+        safe_exec(f"DELETE FROM payroll_runs WHERE client_id IN ({ids_csv})")
+
+        # Document chain (Sprint 9/10 — may not exist pre-migration 004)
+        safe_exec(
+            f"DELETE FROM document_intelligence WHERE document_id IN "
+            f"(SELECT id FROM documents WHERE client_id IN ({ids_csv}))"
+        )
+        safe_exec(f"DELETE FROM documents WHERE client_id IN ({ids_csv})")
+
+        # Banking chain
+        safe_exec(
+            f"DELETE FROM bank_transactions WHERE account_id IN "
+            f"(SELECT id FROM bank_accounts WHERE client_id IN ({ids_csv}))"
+        )
+        safe_exec(f"DELETE FROM bank_accounts WHERE client_id IN ({ids_csv})")
+
+        # Journal chain
+        safe_exec(
+            f"DELETE FROM journal_lines WHERE entry_id IN "
+            f"(SELECT id FROM journal_entries WHERE client_id IN ({ids_csv}))"
+        )
+        safe_exec(f"DELETE FROM journal_entries WHERE client_id IN ({ids_csv})")
+        safe_exec(f"DELETE FROM accounts WHERE client_id IN ({ids_csv})")
+
+        # Invoices chain
+        safe_exec(
+            f"DELETE FROM invoice_line_items WHERE invoice_id IN "
+            f"(SELECT id FROM invoices WHERE client_id IN ({ids_csv}))"
+        )
+        safe_exec(f"DELETE FROM invoices WHERE client_id IN ({ids_csv})")
+
+        # Generic transactions (Sprint 2 table)
+        safe_exec(f"DELETE FROM transactions WHERE client_id IN ({ids_csv})")
+
+        # Client contacts + clients themselves
+        safe_exec(f"DELETE FROM client_contacts WHERE client_id IN ({ids_csv})")
+        safe_exec(f"DELETE FROM clients WHERE agency_id = :aid", {"aid": agency_id})
+
+    # Users, then agency itself
+    safe_exec("DELETE FROM users WHERE agency_id = :aid", {"aid": agency_id})
+    safe_exec("DELETE FROM agencies WHERE id = :aid", {"aid": agency_id})
+
+    db.commit()
+    print("✅ Demo agency wiped. Ready to re-seed.\n")
+    return True
+
+
 # ─── Main seed routine ────────────────────────────────────────────────────────
 
-def seed(db: Session):
+def seed(db: Session, force: bool = False):
     print("\n🌱 BPO Nexus / ClaudERP — Demo Seed\n" + "─" * 48)
+
+    if force:
+        wipe_demo_data(db)
 
     # 1. Agency (idempotency check)
     existing = db.query(Agency).filter(Agency.slug == "claud-erp-demo").first()
     if existing:
-        print(f"✅ Demo agency already exists (id={existing.id}). Nothing to do.")
-        print("   To re-seed, drop the database first.")
+        # Count how many clients actually belong to this agency
+        client_count = db.query(Client).filter(Client.agency_id == existing.id).count()
+        print(f"✅ Demo agency already exists (id={existing.id}, clients={client_count}).")
+        if client_count == 0:
+            print("   ⚠ Agency has 0 clients — a previous seed was interrupted.")
+            print("   Run again with --force to wipe and re-seed:")
+            print("     python scripts/seed.py --force")
+        else:
+            print("   Nothing to do. Run with --force to wipe and re-seed from scratch.")
         return
 
     agency = Agency(
@@ -494,9 +612,11 @@ def seed(db: Session):
 
 
 if __name__ == "__main__":
+    force = "--force" in sys.argv or "--reset" in sys.argv
+
     db = SessionLocal()
     try:
-        seed(db)
+        seed(db, force=force)
     except Exception as e:
         db.rollback()
         print(f"\n❌ Seed failed: {e}")

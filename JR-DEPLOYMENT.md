@@ -176,7 +176,21 @@ ssh root@$DROPLET_IP "docker run --rm \
 
 Expected output ends with `🎉 Seed complete!` and the line `Email: demo@claud-erp.com / Password: demo1234`.
 
-**If the output is `Demo agency already exists. Nothing to do.`** AND the user wants a clean dataset (e.g. payroll data is missing because a previous seed ran before migration 004 was applied): drop the database and start over. **Confirm with the user first** — this destroys ALL data:
+**If the output says `Demo agency already exists (id=N, clients=0)`** with a warning that a previous seed was interrupted — that's the "partial seed" failure mode. The agency and admin user were created but the clients never committed (usually because migration 004 hadn't run yet). Re-run the seed with `--force` to wipe the empty agency and re-seed cleanly:
+
+```bash
+ssh root@$DROPLET_IP "docker run --rm \
+  --env-file /etc/claud-erp/.env \
+  --network claud-erp \
+  registry.digitalocean.com/claud-erp/api:$TAG \
+  python scripts/seed.py --force"
+```
+
+`--force` is safe because it only wipes rows scoped to the `claud-erp-demo` agency — it does not touch any other agency (including the legacy `bpo-nexus` demo data on the same droplet).
+
+**If the output says `Demo agency already exists (id=N, clients=5)`** — everything is fine. The user is probably logged in as the wrong account. Make sure they're signing in with `demo@claud-erp.com` / `demo1234`, NOT `agent@bpo.com` (which belongs to the legacy BPO Nexus agency and has zero clients).
+
+**To completely reset the database from scratch** (nuclear option — destroys ALL data including any legacy `bpo-nexus` containers sharing this stack): confirm with the user first, then:
 
 ```bash
 # Only with explicit user confirmation
