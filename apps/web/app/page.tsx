@@ -26,12 +26,17 @@ export default function HomePage() {
       <header className="border-b">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <Logo size="sm" href="/" />
-          <Button size="sm" asChild>
-            <Link href="/login">
-              Sign In
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
+          <nav className="flex items-center gap-1">
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/demo">Demos</Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link href="/login">
+                Sign In
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </nav>
         </div>
       </header>
 
