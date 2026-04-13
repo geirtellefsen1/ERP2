@@ -224,7 +224,16 @@ function LoginPageInner() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen" />}>
+    <Suspense
+      fallback={
+        <main className="min-h-screen flex items-center justify-center">
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            Loading...
+          </div>
+        </main>
+      }
+    >
       <LoginPageInner />
     </Suspense>
   )

@@ -391,6 +391,60 @@ class JurisdictionConfig(Base):
     client = relationship("Client")
 
 
+class CashflowSnapshot(Base):
+    """Stored 13-week cashflow forecast, captured at a point in time."""
+    __tablename__ = "cashflow_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(
+        Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    snapshot_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    currency = Column(String(3), nullable=False)
+    opening_balance_minor = Column(Integer, nullable=False)
+    closing_balance_minor = Column(Integer, nullable=False)
+    weeks_count = Column(Integer, nullable=False, default=13)
+    threshold_minor = Column(Integer)
+    breach_week_count = Column(Integer, nullable=False, default=0)
+    weeks_json = Column(Text, nullable=False)
+    narrative = Column(Text)
+    narrative_language = Column(String(10))
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    client = relationship("Client")
+
+
+class ReportDelivery(Base):
+    """Tracks generation and delivery of a month-end report."""
+    __tablename__ = "report_deliveries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(
+        Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    report_type = Column(String(50), nullable=False)
+    period_start = Column(DateTime(timezone=True), nullable=False)
+    period_end = Column(DateTime(timezone=True), nullable=False)
+    currency = Column(String(3), nullable=False)
+    language = Column(String(10), nullable=False, default="en")
+    pdf_path = Column(String(500))
+    pdf_size_bytes = Column(Integer)
+    status = Column(String(20), nullable=False, default="pending", index=True)
+    recipient_email = Column(String(255))
+    delivery_provider = Column(String(50))
+    delivery_message_id = Column(String(255))
+    delivery_error = Column(Text)
+    scheduled_for = Column(DateTime(timezone=True), index=True)
+    sent_at = Column(DateTime(timezone=True))
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    client = relationship("Client")
+
+
 class AuditLog(Base):
     """
     Immutable append-only log of significant state changes.
