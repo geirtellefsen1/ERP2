@@ -1,27 +1,15 @@
+"""
+Auth tests — refactored to use the shared conftest fixtures that provide
+clean DB state between tests. The original module-level setup_db fixture
+dropped all tables on teardown, which broke any tests that ran afterwards.
+"""
 import pytest
 from httpx import AsyncClient, ASGITransport
 from passlib.context import CryptContext
 from app.main import app
-from app.database import SessionLocal, engine
-from app.models import Base, User, Agency
+from app.models import User, Agency
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-
-@pytest.fixture(scope="module", autouse=True)
-def setup_db():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-
-@pytest.fixture
-def db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @pytest.fixture
@@ -49,20 +37,16 @@ def test_user(db, test_agency):
     return user
 
 
-@pytest.fixture
-def anyio_backend():
-    return "asyncio"
-
-
 @pytest.mark.anyio
-async def test_register(db):
+async def test_register(test_agency):
+    """Register creates a new user and returns a token."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         payload = {
             "email": "new@example.com",
             "password": "securepass123",
             "full_name": "New User",
-            "agency_id": 1,
+            "agency_id": test_agency.id,
         }
         resp = await client.post("/api/v1/auth/register", json=payload)
         assert resp.status_code == 201
