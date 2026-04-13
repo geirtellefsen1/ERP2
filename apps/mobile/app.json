@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "ClaudERP",
+    "slug": "claud-erp-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1E40AF"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.saga.cluaderp",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ClaudERP uses the camera to capture receipts and invoices so they can be processed automatically.",
+        "NSPhotoLibraryUsageDescription": "ClaudERP needs access to your photos to attach receipts and invoices to expense claims."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1E40AF"
+      },
+      "package": "com.saga.cluaderp",
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow ClaudERP to access your camera to capture receipts."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow ClaudERP to access your photos to attach receipts."
+        }
+      ]
+    ]
+  }
+}
