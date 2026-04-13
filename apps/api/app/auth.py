@@ -1,28 +1,50 @@
 """
-Auth0 JWT validation — validates access tokens on every request.
-Extracts: agency_id, user_id, role from the JWT claims.
+JWT validation for authenticated requests.
+
+Two token formats are supported:
+  1. Internal HS256 tokens issued by app/routers/auth.py — signed with
+     JWT_SIGNING_KEY and verified locally. This is the MVP flow.
+  2. Auth0 RS256 tokens — verified via Auth0's JWKS endpoint. Only
+     attempted when settings.auth0_domain is non-empty. When Auth0 is
+     configured, tokens with an RS256 `alg` header are routed through
+     the JWKS path.
+
+The order matters: local tokens are cheap to verify (no network), so we
+try them first. Auth0 fallback only happens if the internal verify fails
+AND the token's header is RS256 AND Auth0 is configured.
 """
+from __future__ import annotations
+
+import logging
+from typing import Optional
 
 import httpx
-from fastapi import HTTPException, Request, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt, JWTError
 from pydantic import BaseModel
+
 from app.config import get_settings
+from app.services.jwt_signing import get_signing_key
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 security = HTTPBearer(auto_error=False)
 
+ALGORITHM_INTERNAL = "HS256"
+
 
 class AuthUser(BaseModel):
-    sub: str  # Auth0 subject (user ID)
+    sub: str          # user id (as string)
     agency_id: int
     role: str
-    email: str | None = None
+    email: Optional[str] = None
 
 
-# Cache JWKS to avoid fetching on every request
-_jwks_cache: dict | None = None
+# ── JWKS cache (Auth0 path) ────────────────────────────────────────────
+
+_jwks_cache: Optional[dict] = None
 
 
 async def get_jwks() -> dict:
@@ -37,8 +59,7 @@ async def get_jwks() -> dict:
     return _jwks_cache
 
 
-def decode_token(token: str, jwks: dict) -> dict:
-    """Decode and validate a JWT using Auth0's JWKS."""
+def _decode_auth0_token(token: str, jwks: dict) -> dict:
     header = jwt.get_unverified_header(token)
     kid = header.get("kid")
     if not kid:
@@ -61,35 +82,83 @@ def decode_token(token: str, jwks: dict) -> dict:
     )
 
 
+def _decode_internal_token(token: str) -> dict:
+    """Verify an internally-issued HS256 token."""
+    key = get_signing_key()
+    return jwt.decode(
+        token,
+        key,
+        algorithms=[ALGORITHM_INTERNAL],
+        # Audience + issuer are ignored for internal tokens — if we
+        # wanted to enforce them we'd include them in create_access_token.
+        options={"verify_aud": False, "verify_iss": False},
+    )
+
+
+# ── Dependency ─────────────────────────────────────────────────────────
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> AuthUser:
     """
-    Dependency — validates JWT and returns the authenticated user.
-    Raises 401 if missing or invalid.
+    FastAPI dependency — validates a JWT and returns the authenticated
+    user. Raises 401 on any failure.
     """
     if not credentials:
         raise HTTPException(status_code=401, detail="Missing authorization header")
 
     token = credentials.credentials
+    claims: Optional[dict] = None
+    last_error: Optional[str] = None
 
+    # Try internal HS256 first (fast, no network)
     try:
-        jwks = await get_jwks()
-        claims = decode_token(token, jwks)
+        claims = _decode_internal_token(token)
     except JWTError as e:
-        raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
-    except httpx.HTTPError as e:
-        raise HTTPException(status_code=503, detail=f"Auth service unavailable: {e}")
+        last_error = f"Internal token invalid: {e}"
 
-    # Map Auth0 claims → internal AuthUser
-    agency_id = claims.get("https://bponexus.com/agency_id")
-    if not agency_id:
+    # Fall back to Auth0 RS256 if configured
+    if claims is None and settings.auth0_domain:
+        try:
+            header = jwt.get_unverified_header(token)
+            if header.get("alg") == "RS256":
+                jwks = await get_jwks()
+                claims = _decode_auth0_token(token, jwks)
+        except JWTError as e:
+            last_error = f"Auth0 token invalid: {e}"
+        except httpx.HTTPError as e:
+            logger.warning("Auth0 JWKS fetch failed: %s", e)
+            raise HTTPException(
+                status_code=503,
+                detail="Authentication service unavailable",
+            )
+
+    if claims is None:
+        raise HTTPException(
+            status_code=401,
+            detail=last_error or "Invalid token",
+        )
+
+    # Extract claims — internal and Auth0 token shapes differ slightly.
+    # Internal token: {sub, email, role, agency_id, ...}
+    # Auth0 token:    {sub, email, https://bponexus.com/role, https://bponexus.com/agency_id}
+    agency_id = claims.get("agency_id") or claims.get(
+        "https://bponexus.com/agency_id"
+    )
+    if agency_id is None:
         raise HTTPException(status_code=403, detail="Missing agency_id in token")
 
+    role = (
+        claims.get("role")
+        or claims.get("https://bponexus.com/role")
+        or "agent"
+    )
+
     return AuthUser(
-        sub=claims["sub"],
-        agency_id=agency_id,
-        role=claims.get("https://bponexus.com/role", "agent"),
+        sub=str(claims.get("sub", "")),
+        agency_id=int(agency_id),
+        role=role,
         email=claims.get("email"),
     )
 
@@ -97,7 +166,7 @@ async def get_current_user(
 async def optional_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> AuthUser | None:
-    """Returns user if token is valid, None otherwise."""
+    """Return the user if a valid token is present, None otherwise."""
     if not credentials:
         return None
     try:

@@ -4,7 +4,7 @@ For the MVP: username/password → internal JWT issued by BPO Nexus API.
 When Auth0 is configured: delegates to Auth0 Universal Login.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
@@ -15,6 +15,8 @@ from app.database import get_db
 from app.models import User
 from app.auth import AuthUser, get_current_user
 from app.config import get_settings
+from app.services.jwt_signing import get_signing_key
+from app.services.rate_limit import rate_limit
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -61,13 +63,19 @@ def create_access_token(user: User, expires_delta: timedelta | None = None) -> s
         "iat": datetime.now(timezone.utc),
         "iss": settings.auth0_audience,
     }
-    return jwt.encode(claims, settings.claude_api_key[:32].ljust(32, "0"), algorithm=ALGORITHM)
+    return jwt.encode(claims, get_signing_key(), algorithm=ALGORITHM)
 
 
 # ─── Routes ────────────────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenResponse)
-def login(data: LoginRequest, db: Session = Depends(get_db)):
+def login(
+    data: LoginRequest,
+    db: Session = Depends(get_db),
+    _rl: None = Depends(
+        rate_limit("login", per_minute=settings.rate_limit_login_per_minute)
+    ),
+):
     """
     Username/password login. Issues an internal JWT (MVP).
     Production: replace with Auth0 Universal Login redirect.

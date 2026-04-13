@@ -16,6 +16,7 @@ from app.routers import (
     ai,
     agent,
     payroll,
+    integrations,
 )
 
 settings = get_settings()
@@ -52,6 +53,7 @@ app.include_router(documents.router)
 app.include_router(ai.router)
 app.include_router(agent.router)
 app.include_router(payroll.router)
+app.include_router(integrations.router)
 
 
 class HealthResponse(BaseModel):

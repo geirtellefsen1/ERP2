@@ -607,6 +607,36 @@ class WipEntry(Base):
     written_off_at = Column(DateTime(timezone=True))
 
 
+class IntegrationConfig(Base):
+    """
+    Per-agency integration credentials and settings.
+
+    The source of truth for everything Tier 5 config screens manage.
+    Each (agency_id, provider, key) triple has one row. Values are
+    encrypted via services/secrets.py before they land here.
+    """
+    __tablename__ = "integration_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agency_id = Column(
+        Integer,
+        ForeignKey("agencies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    provider = Column(String(50), nullable=False, index=True)
+    key = Column(String(100), nullable=False)
+    value_encrypted = Column(Text, nullable=False)
+    is_secret = Column(Boolean, nullable=False, default=True)
+    last_verified_at = Column(DateTime(timezone=True))
+    last_verification_error = Column(Text)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
+
+
 class AuditLog(Base):
     """
     Immutable append-only log of significant state changes.

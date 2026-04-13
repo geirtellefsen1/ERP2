@@ -11,6 +11,21 @@ class Settings(BaseSettings):
     auth0_audience: str = ""
     claude_api_key: str = ""
 
+    # ── JWT signing — dedicated key, NEVER reuse another provider's key.
+    # In dev/test, leave blank and the auth module will derive a stable
+    # per-process key from a hardcoded placeholder (with a loud warning).
+    # In production, set to at least 32 random bytes:
+    #     openssl rand -hex 32
+    jwt_signing_key: str = ""
+
+    # ── Integration secrets master key (Fernet-compatible). Used by
+    # services/secrets.py to encrypt per-agency credentials at rest.
+    integration_secrets_key: str = ""
+
+    # ── Rate limiting
+    rate_limit_per_minute: int = 30
+    rate_limit_login_per_minute: int = 10
+
     # ── OAuth (Google + Microsoft social login) ──
     google_client_id: str = ""
     google_client_secret: str = ""

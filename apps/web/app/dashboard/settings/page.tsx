@@ -12,6 +12,7 @@ import {
   Link2,
   ChevronRight,
   Check,
+  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,11 @@ import { Select } from "@/components/ui/select"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
+import { apiGet } from "@/lib/api"
+import {
+  IntegrationConfigModal,
+  type ProviderSchema,
+} from "@/components/IntegrationConfigModal"
 
 const SECTIONS = [
   { id: "agency", label: "Agency", icon: Building2 },
@@ -31,17 +37,90 @@ const SECTIONS = [
   { id: "appearance", label: "Appearance", icon: Palette },
 ]
 
-const INTEGRATIONS = [
-  { name: "TrueLayer", description: "Open Banking (UK/EU)", connected: false },
-  { name: "Auth0", description: "SSO & MFA authentication", connected: true },
-  { name: "Claude AI", description: "AI document processing", connected: true },
-  { name: "WhatsApp", description: "Client communications", connected: false },
-  { name: "Resend", description: "Transactional email", connected: true },
+// Category ordering so the Integrations tab has a predictable shape
+// regardless of how the backend PROVIDERS dict is iterated.
+const CATEGORY_ORDER = [
+  "auth",
+  "identity",
+  "banking",
+  "filing",
+  "storage",
+  "email",
+  "ai",
+  "pms",
+  "whatsapp",
+  "other",
 ]
+
+const CATEGORY_LABELS: Record<string, string> = {
+  auth: "Authentication",
+  identity: "Identity & eID",
+  banking: "Open Banking",
+  filing: "Statutory filings",
+  storage: "File storage",
+  email: "Email delivery",
+  ai: "AI & LLMs",
+  pms: "PMS / Hospitality",
+  whatsapp: "Messaging",
+  other: "Other",
+}
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("agency")
   const { toast } = useToast()
+
+  // Integration catalogue loaded from the API
+  const [providers, setProviders] = useState<ProviderSchema[] | null>(null)
+  const [providerStatus, setProviderStatus] = useState<
+    Record<string, { configured: boolean; last_verified_at: string | null }>
+  >({})
+  const [providersLoading, setProvidersLoading] = useState(false)
+  const [editingProvider, setEditingProvider] = useState<ProviderSchema | null>(
+    null
+  )
+
+  // Load providers when the Integrations tab becomes active.
+  // Reloads on demand when a save completes so status badges stay fresh.
+  const loadProviders = async () => {
+    setProvidersLoading(true)
+    try {
+      const list = await apiGet<ProviderSchema[]>(
+        "/api/v1/integrations/providers"
+      )
+      setProviders(list)
+      // Fetch status for every provider in parallel
+      const statuses = await Promise.all(
+        list.map(async (p) => {
+          try {
+            const cfg = await apiGet<{
+              is_configured: boolean
+              last_verified_at: string | null
+            }>(`/api/v1/integrations/${p.key}`)
+            return [p.key, {
+              configured: cfg.is_configured,
+              last_verified_at: cfg.last_verified_at,
+            }] as const
+          } catch {
+            return [p.key, { configured: false, last_verified_at: null }] as const
+          }
+        })
+      )
+      const map: Record<string, { configured: boolean; last_verified_at: string | null }> = {}
+      for (const [k, v] of statuses) map[k] = v
+      setProviderStatus(map)
+    } catch (e: any) {
+      toast(e.message || "Failed to load integrations")
+    } finally {
+      setProvidersLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeSection === "integrations" && providers === null) {
+      loadProviders()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection])
 
   const [agencyForm, setAgencyForm] = useState({
     name: "BPO Nexus Demo",
@@ -382,45 +461,95 @@ export default function SettingsPage() {
 
           {/* Integrations */}
           {activeSection === "integrations" && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Integrations</CardTitle>
-                <CardDescription>
-                  Connect external services and APIs
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                {INTEGRATIONS.map((int) => (
-                  <div
-                    key={int.name}
-                    className="flex items-center justify-between px-3 py-3 rounded-md hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
-                        <Link2 className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{int.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {int.description}
-                        </p>
-                      </div>
-                    </div>
-                    {int.connected ? (
-                      <Badge variant="success">
-                        <Check className="h-3 w-3 mr-1" />
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Button variant="outline" size="sm">
-                        Connect
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+            <div className="space-y-4">
+              {providersLoading && (
+                <div className="flex items-center justify-center py-8 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Loading integrations…
+                </div>
+              )}
+              {providers &&
+                CATEGORY_ORDER
+                  .filter((cat) =>
+                    providers.some((p) => p.category === cat)
+                  )
+                  .map((cat) => {
+                    const catProviders = providers.filter(
+                      (p) => p.category === cat
+                    )
+                    return (
+                      <Card key={cat}>
+                        <CardHeader>
+                          <CardTitle>
+                            {CATEGORY_LABELS[cat] || cat}
+                          </CardTitle>
+                          <CardDescription>
+                            {catProviders.length} provider
+                            {catProviders.length === 1 ? "" : "s"}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-1">
+                          {catProviders.map((p) => {
+                            const st = providerStatus[p.key] || {
+                              configured: false,
+                              last_verified_at: null,
+                            }
+                            return (
+                              <button
+                                key={p.key}
+                                onClick={() => setEditingProvider(p)}
+                                className="w-full flex items-center justify-between px-3 py-3 rounded-md hover:bg-accent/50 transition-colors text-left"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                                    <Link2 className="h-4 w-4 text-muted-foreground" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-medium">{p.label}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {p.description}
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {st.configured ? (
+                                    <Badge variant="success">
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Configured
+                                    </Badge>
+                                  ) : (
+                                    <Badge>Not configured</Badge>
+                                  )}
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+              {providers && providers.length === 0 && (
+                <Card>
+                  <CardContent className="py-8 text-sm text-muted-foreground text-center">
+                    No integrations registered. Check the API provider
+                    catalogue.
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
+
+          {/* Integration edit modal */}
+          <IntegrationConfigModal
+            open={!!editingProvider}
+            provider={editingProvider}
+            onClose={() => setEditingProvider(null)}
+            onSaved={() => {
+              toast(`${editingProvider?.label || "Integration"} saved`)
+              loadProviders()
+            }}
+          />
 
           {/* Appearance */}
           {activeSection === "appearance" && (

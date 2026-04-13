@@ -16,6 +16,8 @@ import {
   Search,
   Sparkles,
   ChevronsUpDown,
+  CheckSquare,
+  CreditCard,
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { useState, useEffect } from "react"
@@ -27,6 +29,7 @@ const NAV_SECTIONS = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/clients", label: "Clients", icon: Users },
+      { href: "/dashboard/tasks", label: "Tasks", icon: CheckSquare },
     ],
   },
   {
@@ -47,6 +50,7 @@ const NAV_SECTIONS = [
 ]
 
 const BOTTOM_NAV = [
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]
 
