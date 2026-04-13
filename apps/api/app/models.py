@@ -445,6 +445,168 @@ class ReportDelivery(Base):
     client = relationship("Client")
 
 
+# ─── Tier 4: Hospitality vertical ────────────────────────────────────────
+
+
+class Property(Base):
+    """A hotel, guesthouse, or venue owned by a client."""
+    __tablename__ = "properties"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(
+        Integer, ForeignKey("clients.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    name = Column(String(255), nullable=False)
+    country = Column(String(3), nullable=False)
+    total_rooms = Column(Integer, nullable=False, default=0)
+    opening_date = Column(DateTime(timezone=True))
+    timezone = Column(String(50), nullable=False, default="Europe/Oslo")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    client = relationship("Client")
+
+
+class RoomCategory(Base):
+    __tablename__ = "room_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(
+        Integer, ForeignKey("properties.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    code = Column(String(20), nullable=False)
+    label = Column(String(100), nullable=False)
+    room_count = Column(Integer, nullable=False, default=0)
+    base_rate_minor = Column(Integer, nullable=False, default=0)
+    currency = Column(String(3), nullable=False)
+
+
+class Outlet(Base):
+    __tablename__ = "outlets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(
+        Integer, ForeignKey("properties.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    name = Column(String(100), nullable=False)
+    outlet_type = Column(String(30), nullable=False, index=True)
+
+
+class DailyRevenueImport(Base):
+    __tablename__ = "daily_revenue_imports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    property_id = Column(
+        Integer, ForeignKey("properties.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    import_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    rooms_sold = Column(Integer, nullable=False, default=0)
+    rooms_available = Column(Integer, nullable=False, default=0)
+    currency = Column(String(3), nullable=False)
+    pms_name = Column(String(50))
+    raw_reference = Column(String(255))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class DailyRevenueLine(Base):
+    __tablename__ = "daily_revenue_lines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    import_id = Column(
+        Integer, ForeignKey("daily_revenue_imports.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    outlet_type = Column(String(30), nullable=False)
+    gross_amount_minor = Column(Integer, nullable=False)
+    cover_count = Column(Integer, nullable=False, default=0)
+
+
+# ─── Tier 4: Professional Services vertical ──────────────────────────────
+
+
+class Matter(Base):
+    __tablename__ = "matters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(
+        Integer, ForeignKey("clients.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    code = Column(String(50), nullable=False)
+    title = Column(String(255), nullable=False)
+    matter_type = Column(String(30), nullable=False)
+    status = Column(String(20), nullable=False, default="open", index=True)
+    opened_on = Column(DateTime(timezone=True), nullable=False)
+    closed_on = Column(DateTime(timezone=True))
+    partner_in_charge = Column(Integer)
+    billing_contact = Column(String(255))
+    fixed_fee_minor = Column(Integer)
+    retainer_balance_minor = Column(Integer)
+    currency = Column(String(3), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    client = relationship("Client")
+
+
+class FeeEarner(Base):
+    __tablename__ = "fee_earners"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(
+        Integer, ForeignKey("clients.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    grade = Column(String(20), nullable=False, index=True)
+    default_hourly_rate_minor = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False)
+    is_active = Column(Boolean, nullable=False, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+
+class BillingRate(Base):
+    __tablename__ = "billing_rates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id", ondelete="CASCADE"), index=True)
+    matter_id = Column(Integer, ForeignKey("matters.id", ondelete="CASCADE"), index=True)
+    grade = Column(String(20))
+    matter_type = Column(String(30))
+    hourly_rate_minor = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False)
+    effective_from = Column(DateTime(timezone=True), nullable=False)
+    effective_to = Column(DateTime(timezone=True))
+
+
+class WipEntry(Base):
+    __tablename__ = "wip_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    matter_id = Column(
+        Integer, ForeignKey("matters.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    fee_earner_id = Column(
+        Integer, ForeignKey("fee_earners.id", ondelete="RESTRICT"),
+        nullable=False, index=True,
+    )
+    worked_on = Column(DateTime(timezone=True), nullable=False, index=True)
+    hours = Column(Numeric(6, 2), nullable=False)
+    hourly_rate_minor = Column(Integer, nullable=False)
+    currency = Column(String(3), nullable=False)
+    description = Column(Text, nullable=False)
+    status = Column(String(20), nullable=False, default="unbilled", index=True)
+    logged_at = Column(DateTime(timezone=True), server_default=func.now())
+    billed_at = Column(DateTime(timezone=True))
+    written_off_at = Column(DateTime(timezone=True))
+
+
 class AuditLog(Base):
     """
     Immutable append-only log of significant state changes.
