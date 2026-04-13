@@ -1,38 +1,85 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ClaudERP web — production Next.js standalone build
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Why this Dockerfile is shaped the way it is:
+#
+# - The repo is a pnpm monorepo with apps/web as a workspace. The builder
+#   stage MUST preserve the workspace layout (apps/web/, pnpm-workspace.yaml
+#   at the root). The previous version of this file did `COPY apps/web/ .`
+#   which flattened the workspace and broke the build silently.
+#
+# - Next.js with `output: 'standalone'` (set in apps/web/next.config.js)
+#   produces:
+#     <root>/.next/standalone/                           minimal node_modules
+#     <root>/.next/standalone/apps/web/server.js         entry point
+#     <root>/.next/standalone/apps/web/.next/server/     server bundles
+#
+# - Static assets (CSS bundle, JS chunks) are NOT included in standalone.
+#   They live at <root>/apps/web/.next/static/ and must be copied separately
+#   to ./apps/web/.next/static/ in the runner image.
+#
+# - Public assets (logo.svg, etc.) are also separate. They live at
+#   <root>/apps/web/public/ and must be copied to ./apps/web/public/.
+#
+# - The runner CMD must `cd` into apps/web before running server.js because
+#   the standalone server resolves static and public paths relative to its
+#   own working directory.
+#
+# - NEXT_PUBLIC_* env vars are baked into the JS bundle at BUILD time, not
+#   at runtime. Pass them via --build-arg or the deployment WILL hardcode
+#   localhost:8000 as the API URL.
+# ─────────────────────────────────────────────────────────────────────────────
+
 FROM node:20-alpine AS base
 
+# ── Builder ──────────────────────────────────────────────────────────────────
 FROM base AS builder
-WORKDIR /app
+WORKDIR /repo
 
-# NEXT_PUBLIC_* env vars are baked into the JS bundle at BUILD time, not at
-# runtime. The deployment must pass --build-arg NEXT_PUBLIC_API_URL=https://...
-# pointing at the publicly-reachable API URL, otherwise the browser will try
-# to call http://localhost:8000 from the user's machine and fail.
+# NEXT_PUBLIC_* — must be passed at docker build time
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
-COPY package.json pnpm-lock.yaml* ./
-RUN corepack enable && corepack prepare pnpm@9 --activate && pnpm install --frozen-lockfile
-COPY apps/web/package.json apps/web/
-RUN pnpm --filter @bpo-nexus/web install --frozen-lockfile
-COPY apps/web/ .
+# Workspace manifests first for layer caching
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+
+# Install dependencies (workspace-aware)
+RUN corepack enable && corepack prepare pnpm@9 --activate
+RUN pnpm install --frozen-lockfile
+
+# Copy the rest of the workspace source
+COPY apps/web ./apps/web
+COPY packages ./packages
+
+# Build the Next.js app from the workspace root.
 RUN pnpm --filter @bpo-nexus/web build
 
+# ── Runner ───────────────────────────────────────────────────────────────────
 FROM base AS runner
 WORKDIR /app
+
 ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Standalone bundle (preserves apps/web/ structure)
+COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/.next/standalone ./
+# Static assets (CSS bundle, hashed JS chunks) — must sit next to server.js
+COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/.next/static ./apps/web/.next/static
+# Public folder (logo.svg, favicon, etc.)
+COPY --from=builder --chown=nextjs:nodejs /repo/apps/web/public ./apps/web/public
 
 USER nextjs
+
+# Run from the workspace dir so server.js resolves static/public correctly
+WORKDIR /app/apps/web
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
 
 CMD ["node", "server.js"]
