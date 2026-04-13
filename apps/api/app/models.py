@@ -354,3 +354,70 @@ class Payslip(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     employee = relationship("Employee", back_populates="payslips")
+
+
+# ─── Sprint Tier 1.3: Jurisdictions & Audit ────────────────────────────────
+
+
+class JurisdictionConfig(Base):
+    """
+    Per-client configuration that selects the jurisdiction module and stores
+    client-level overrides. One row per client.
+
+    The primary_jurisdiction field drives which JurisdictionEngine module is
+    loaded for this client — NO, SE, or FI. Routers use it to look up VAT
+    rates, payroll rules, filing calendars, etc.
+    """
+    __tablename__ = "jurisdiction_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(
+        Integer,
+        ForeignKey("clients.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    primary_jurisdiction = Column(String(3), nullable=False, index=True)
+    secondary_jurisdictions = Column(String(255))
+    reporting_currency = Column(String(3), nullable=False, default="NOK")
+    vat_filing_frequency = Column(String(20))
+    fiscal_year_start_month = Column(Integer, nullable=False, default=1)
+    language = Column(String(10), nullable=False, default="en")
+    config_overrides = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    client = relationship("Client")
+
+
+class AuditLog(Base):
+    """
+    Immutable append-only log of significant state changes.
+
+    Rows are never updated or deleted once written — this is enforced at the
+    application layer (no update/delete routers) rather than database layer,
+    so migrations and backups can still operate on the table normally.
+    """
+    __tablename__ = "audit_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agency_id = Column(
+        Integer, ForeignKey("agencies.id", ondelete="SET NULL"), index=True
+    )
+    client_id = Column(
+        Integer, ForeignKey("clients.id", ondelete="SET NULL"), index=True
+    )
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
+    action = Column(String(50), nullable=False)
+    entity_type = Column(String(50))
+    entity_id = Column(String(50))
+    diff = Column(Text)
+    ip_address = Column(String(45))
+    user_agent = Column(String(500))
+    request_id = Column(String(64))
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

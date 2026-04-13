@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { GoogleIcon, MicrosoftIcon } from "@/components/ui/brand-icons"
 import { Logo } from "@/components/ui/logo"
+import { LanguageSwitcher } from "@/components/ui/language-switcher"
+import { useTranslations } from "@/i18n/provider"
 import { API_BASE } from "@/lib/utils"
 
 interface ProvidersStatus {
@@ -16,6 +18,8 @@ interface ProvidersStatus {
 
 function LoginPageInner() {
   const params = useSearchParams()
+  const tAuth = useTranslations("Auth")
+  const tCommon = useTranslations("Common")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -99,7 +103,7 @@ function LoginPageInner() {
           </div>
           <div className="space-y-2">
             <p className="text-sm text-primary-foreground/70">
-              Trusted by teams using
+              {tAuth("trustedByHeading")}
             </p>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 bg-white/10 backdrop-blur rounded-md px-3 py-1.5 text-xs">
@@ -124,11 +128,14 @@ function LoginPageInner() {
             <Logo size="md" />
           </div>
 
-          <div>
-            <h1 className="text-xl font-semibold">Welcome back</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Sign in or create an account to continue
-            </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-xl font-semibold">{tAuth("welcomeBack")}</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                {tAuth("signInSubtitle")}
+              </p>
+            </div>
+            <LanguageSwitcher />
           </div>
 
           {/* Social sign-in buttons — larger, more prominent */}
@@ -141,7 +148,7 @@ function LoginPageInner() {
                   className="group flex items-center justify-center gap-3 w-full h-11 px-4 rounded-lg border border-input bg-background text-sm font-medium hover:bg-accent hover:border-foreground/20 transition-all active:scale-[0.99]"
                 >
                   <GoogleIcon className="h-5 w-5" />
-                  <span>Continue with Google</span>
+                  <span>{tAuth("continueWithGoogle")}</span>
                 </button>
               )}
               {providers.microsoft && (
@@ -151,7 +158,7 @@ function LoginPageInner() {
                   className="group flex items-center justify-center gap-3 w-full h-11 px-4 rounded-lg border border-input bg-background text-sm font-medium hover:bg-accent hover:border-foreground/20 transition-all active:scale-[0.99]"
                 >
                   <MicrosoftIcon className="h-5 w-5" />
-                  <span>Continue with Microsoft</span>
+                  <span>{tAuth("continueWithMicrosoft")}</span>
                 </button>
               )}
             </div>
@@ -161,7 +168,7 @@ function LoginPageInner() {
             <div className="relative flex items-center">
               <div className="flex-1 border-t" />
               <span className="px-3 text-2xs uppercase tracking-wider text-muted-foreground">
-                or continue with email
+                {tAuth("orContinueWithEmail")}
               </span>
               <div className="flex-1 border-t" />
             </div>
@@ -169,21 +176,21 @@ function LoginPageInner() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <Input
-              label="Email"
+              label={tAuth("email")}
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
+              placeholder={tAuth("emailPlaceholder")}
               icon={<Mail />}
               required
             />
 
             <Input
-              label="Password"
+              label={tAuth("password")}
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder={tAuth("passwordPlaceholder")}
               icon={<Lock />}
               required
             />
@@ -202,12 +209,12 @@ function LoginPageInner() {
               loading={loading}
             >
               <LogIn className="h-4 w-4" />
-              Sign In
+              {tCommon("signIn")}
             </Button>
           </form>
 
           <p className="text-center text-xs text-muted-foreground">
-            By signing in, you agree to our Terms and Privacy Policy.
+            {tAuth("termsAgreement")}
           </p>
         </div>
       </div>
