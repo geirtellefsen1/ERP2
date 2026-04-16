@@ -11,12 +11,14 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, timedelta, timezone
 from jose import jwt
 import httpx
+from uuid import uuid4
 from app.database import get_db
-from app.models import User
+from app.models import User, PasswordResetToken
 from app.auth import AuthUser, get_current_user
 from app.config import get_settings
 from app.services.jwt_signing import get_signing_key
 from app.services.rate_limit import rate_limit
+from app.services.delivery.email import send_password_reset_email
 from app.services.auth.refresh import (
     issue_pair,
     rotate,
@@ -63,6 +65,15 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=8)
     full_name: str = Field(..., min_length=1)
     agency_id: int
+
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str = Field(..., min_length=8)
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -208,6 +219,64 @@ def logout_session(
 
     revoke_family(family)
     return {"detail": "Session revoked"}
+
+
+# ─── Password Reset ───────────────────────────────────────────────────────────
+
+RESET_TOKEN_EXPIRE_MINUTES = 60  # 1 hour
+
+
+@router.post("/password/request-reset", status_code=status.HTTP_202_ACCEPTED)
+def request_password_reset(
+    data: PasswordResetRequest,
+    db: Session = Depends(get_db),
+):
+    """Request a password reset email.
+
+    Always returns 202 regardless of whether the email exists, to avoid
+    leaking user existence.
+    """
+    user = db.query(User).filter(User.email == data.email).first()
+    if user:
+        jti = uuid4().hex
+        token = PasswordResetToken(
+            jti=jti,
+            user_id=user.id,
+            expires_at=datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES),
+        )
+        db.add(token)
+        db.commit()
+        reset_url = f"https://erp.tellefsen.org/reset-password?token={jti}"
+        send_password_reset_email(user.email, reset_url)
+
+    return {"detail": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/password/reset")
+def reset_password(
+    data: PasswordResetConfirm,
+    db: Session = Depends(get_db),
+):
+    """Reset password using a valid, unexpired, unused token."""
+    token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.jti == data.token
+    ).first()
+    if not token:
+        raise HTTPException(status_code=400, detail="Reset token is invalid")
+    if token.used_at is not None:
+        raise HTTPException(status_code=400, detail="Reset token has already been used")
+    if token.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Reset token has expired")
+
+    user = db.query(User).filter(User.id == token.user_id).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Reset token is invalid")
+
+    user.hashed_password = pwd_context.hash(data.new_password)
+    token.used_at = datetime.now(timezone.utc)
+    db.commit()
+
+    return {"detail": "Password has been reset successfully"}
 
 
 @router.post("/auth0/callback")
