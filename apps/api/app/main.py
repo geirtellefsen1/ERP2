@@ -21,6 +21,7 @@ from app.routers import (
     onboarding,
     dsr,
     mfa,
+    hospitality,
 )
 
 settings = get_settings()
@@ -67,6 +68,7 @@ app.include_router(billing_stripe.router)
 app.include_router(onboarding.router)
 app.include_router(dsr.router)
 app.include_router(mfa.router)
+app.include_router(hospitality.router)
 
 
 class HealthResponse(BaseModel):

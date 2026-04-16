@@ -775,3 +775,37 @@ class AgencySubscription(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     agency = relationship("Agency")
+
+
+# ─── Phase 1.5: AI Activity Feed ──────────────────────────────────────────
+
+
+class AiActivityFeed(Base):
+    """Append-only stream of things the AI did, per agency.
+
+    The dashboard reads this to render the "AI did N things since you last
+    logged in" panel. Items with requires_review=True surface in the
+    accountant's approvals queue.
+    """
+    __tablename__ = "ai_activity_feed"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agency_id = Column(
+        Integer,
+        ForeignKey("agencies.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    client_id = Column(
+        Integer, ForeignKey("clients.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    category = Column(String(40), nullable=False)
+    severity = Column(String(20), nullable=False, default="info")
+    title = Column(String(255), nullable=False)
+    detail = Column(Text)
+    source_kind = Column(String(40))
+    source_id = Column(Integer)
+    requires_review = Column(Boolean, nullable=False, default=False)
+    reviewed_at = Column(DateTime(timezone=True))
+    reviewed_by_user_id = Column(Integer)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
