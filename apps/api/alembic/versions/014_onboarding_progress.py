@@ -1,7 +1,7 @@
 """Add onboarding_progress table
 
 Revision ID: 014_onboarding_progress
-Revises: 010_timescale_hypertables
+Revises: 013_agency_subscriptions
 Create Date: 2026-04-16
 """
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "014_onboarding_progress"
-down_revision = "010_timescale_hypertables"
+down_revision = "013_agency_subscriptions"
 branch_labels = None
 depends_on = None
 

@@ -1,7 +1,7 @@
 """Add legal_holds table
 
 Revision ID: 012_legal_hold
-Revises: 010_timescale_hypertables
+Revises: 011_dsr_requests
 Create Date: 2026-04-16
 """
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = "012_legal_hold"
-down_revision = "010_timescale_hypertables"
+down_revision = "011_dsr_requests"
 branch_labels = None
 depends_on = None
 
