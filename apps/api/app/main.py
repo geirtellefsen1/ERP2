@@ -20,7 +20,7 @@ from app.routers import (
     billing_stripe,
 )
 
-settings = get_settings()
+from app.routers import onboarding
 
 app = FastAPI(
     title="BPO Nexus API",
@@ -41,21 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(oauth.router)
-app.include_router(agencies.router)
-app.include_router(clients.router)
-app.include_router(users.router)
-app.include_router(accounts.router)
-app.include_router(journal.router)
-app.include_router(bank.router)
-app.include_router(reports.router)
-app.include_router(documents.router)
-app.include_router(ai.router)
-app.include_router(agent.router)
-app.include_router(payroll.router)
-app.include_router(integrations.router)
-app.include_router(billing_stripe.router)
+app.include_router(onboarding.router)
 
 
 class HealthResponse(BaseModel):
