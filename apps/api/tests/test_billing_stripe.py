@@ -15,7 +15,7 @@ from app.main import app
 
 client = TestClient(app)
 
-WEBHOOK_URL = "/billing/stripe/webhook"
+WEBHOOK_URL = "/api/v1/billing/stripe/webhook"
 
 
 def _make_stripe_event(event_type: str, object_id: str = "obj_123") -> dict:

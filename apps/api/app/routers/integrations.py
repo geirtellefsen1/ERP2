@@ -172,7 +172,7 @@ def set_provider_config(
             agency_id=current_user.agency_id,
             provider=provider,
             values=body.values,
-            user_id=int(current_user.sub) if current_user.sub.isdigit() else None,
+            user_id=current_user.id,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

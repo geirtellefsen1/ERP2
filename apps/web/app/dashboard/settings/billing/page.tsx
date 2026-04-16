@@ -68,7 +68,7 @@ export default function BillingPage() {
 
   const loadSubscription = async () => {
     try {
-      const data = await apiGet<Subscription | null>("/billing/subscription")
+      const data = await apiGet<Subscription | null>("/api/v1/billing/subscription")
       setSubscription(data)
     } catch (e: any) {
       toast(e.message || "Failed to load subscription")
@@ -87,7 +87,7 @@ export default function BillingPage() {
   const handleSubscribe = async (tier: string) => {
     setSubscribing(tier)
     try {
-      const data = await apiPost<Subscription>("/billing/subscribe", { tier })
+      const data = await apiPost<Subscription>("/api/v1/billing/subscribe", { tier })
       setSubscription(data)
       toast(`Subscribed to ${tier} plan`)
     } catch (e: any) {
@@ -100,7 +100,7 @@ export default function BillingPage() {
   const handlePortal = async () => {
     setPortalLoading(true)
     try {
-      const data = await apiPost<{ url: string }>("/billing/portal", {})
+      const data = await apiPost<{ url: string }>("/api/v1/billing/portal", {})
       window.location.href = data.url
     } catch (e: any) {
       toast(e.message || "Could not open billing portal")

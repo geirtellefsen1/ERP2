@@ -8,7 +8,7 @@ class TestGetInitialState:
     """GET /onboarding/state when no record exists yet."""
 
     def test_returns_step_one(self, client: TestClient):
-        response = client.get("/onboarding/state")
+        response = client.get("/api/v1/onboarding/state")
         assert response.status_code == 200
         data = response.json()
         assert data["current_step"] == 1
@@ -24,7 +24,7 @@ class TestUpdateState:
     def test_create_and_update(self, client: TestClient):
         # First update — creates the record
         response = client.put(
-            "/onboarding/state",
+            "/api/v1/onboarding/state",
             json={"current_step": 2, "step_data": {"agency_name": "Acme BPO"}},
         )
         assert response.status_code == 200
@@ -34,7 +34,7 @@ class TestUpdateState:
 
         # Second update — updates the existing record
         response = client.put(
-            "/onboarding/state",
+            "/api/v1/onboarding/state",
             json={"current_step": 3, "step_data": {"invited": ["a@b.com"]}},
         )
         assert response.status_code == 200
@@ -44,10 +44,10 @@ class TestUpdateState:
 
     def test_get_after_update(self, client: TestClient):
         client.put(
-            "/onboarding/state",
+            "/api/v1/onboarding/state",
             json={"current_step": 4, "step_data": {"bank": "FNB"}},
         )
-        response = client.get("/onboarding/state")
+        response = client.get("/api/v1/onboarding/state")
         assert response.status_code == 200
         data = response.json()
         assert data["current_step"] == 4
@@ -55,7 +55,7 @@ class TestUpdateState:
 
     def test_complete_sets_completed_at(self, client: TestClient):
         response = client.put(
-            "/onboarding/state",
+            "/api/v1/onboarding/state",
             json={"current_step": 5},
         )
         assert response.status_code == 200
@@ -68,21 +68,21 @@ class TestStepValidation:
 
     def test_reject_step_zero(self, client: TestClient):
         response = client.put(
-            "/onboarding/state",
+            "/api/v1/onboarding/state",
             json={"current_step": 0},
         )
         assert response.status_code == 422
 
     def test_reject_step_six(self, client: TestClient):
         response = client.put(
-            "/onboarding/state",
+            "/api/v1/onboarding/state",
             json={"current_step": 6},
         )
         assert response.status_code == 422
 
     def test_reject_negative_step(self, client: TestClient):
         response = client.put(
-            "/onboarding/state",
+            "/api/v1/onboarding/state",
             json={"current_step": -1},
         )
         assert response.status_code == 422

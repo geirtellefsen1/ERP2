@@ -242,7 +242,7 @@ async def upload_document(
         file_path=file_path,
         file_size=file_size,
         mime_type=file.content_type,
-        uploaded_by=current_user.sub,
+        uploaded_by=current_user.id,
     )
     db.add(document)
     db.commit()

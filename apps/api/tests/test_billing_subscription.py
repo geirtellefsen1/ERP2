@@ -69,7 +69,7 @@ def test_subscribe_creates_subscription(
     }
 
     resp = client.post(
-        "/billing/subscribe",
+        "/api/v1/billing/subscribe",
         json={"tier": "growth"},
         headers=AUTH_HEADERS,
     )
@@ -105,12 +105,12 @@ def test_get_subscription(
 
     # Create a subscription first
     client.post(
-        "/billing/subscribe",
+        "/api/v1/billing/subscribe",
         json={"tier": "starter"},
         headers=AUTH_HEADERS,
     )
 
-    resp = client.get("/billing/subscription", headers=AUTH_HEADERS)
+    resp = client.get("/api/v1/billing/subscription", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     data = resp.json()
     assert data["tier"] == "starter"
@@ -119,7 +119,7 @@ def test_get_subscription(
 
 def test_get_subscription_none(client: TestClient, agency: Agency):
     """GET /billing/subscription returns null when no subscription exists."""
-    resp = client.get("/billing/subscription", headers=AUTH_HEADERS)
+    resp = client.get("/api/v1/billing/subscription", headers=AUTH_HEADERS)
     assert resp.status_code == 200
     assert resp.json() is None
 

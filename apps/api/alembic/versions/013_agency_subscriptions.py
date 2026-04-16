@@ -66,7 +66,10 @@ def upgrade() -> None:
     op.execute(
         "CREATE POLICY agency_subscriptions_agency_isolation "
         "ON agency_subscriptions "
-        "USING (agency_id = current_setting('app.current_agency_id')::int)"
+        "USING ("
+        "  current_setting('app.current_agency_id', true) = '0'"
+        "  OR agency_id = NULLIF(current_setting('app.current_agency_id', true), '')::int"
+        ")"
     )
 
 

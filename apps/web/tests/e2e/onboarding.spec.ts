@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Onboarding wizard", () => {
   test.beforeEach(async ({ page }) => {
     // Mock the onboarding state API so tests don't depend on a running backend
-    await page.route("**/onboarding/state", async (route) => {
+    await page.route("**/api/v1/onboarding/state", async (route) => {
       const method = route.request().method();
       if (method === "GET") {
         await route.fulfill({

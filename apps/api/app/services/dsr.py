@@ -17,6 +17,7 @@ from app.models import (
     Client,
     ClientContact,
     DsrArtifact,
+    FeeEarner,
     User,
 )
 
@@ -56,6 +57,21 @@ def export_subject_data(
         {"id": c.id, "name": c.name, "email": c.email, "phone": c.phone, "role": c.role}
         for c in contacts
     ]
+
+    # Fee earners — scope to agency via Client FK
+    earners = (
+        db.query(FeeEarner)
+        .join(Client, FeeEarner.client_id == Client.id)
+        .filter(Client.agency_id == agency_id, FeeEarner.email == subject_email)
+        .all()
+    )
+    data["fee_earners"] = [
+        {"id": e.id, "name": e.name, "email": e.email, "grade": e.grade}
+        for e in earners
+    ]
+
+    # Note: Employee records (payroll) lack an email field and require
+    # manual matching by the DSR admin. They are not auto-exported here.
 
     return data
 
@@ -99,6 +115,19 @@ def erase_subject_data(
     for c in contacts:
         summary["erased"].append(f"client_contact:{c.id}")
         db.delete(c)
+
+    # Fee earners — pseudonymise (scoped to agency)
+    earners = (
+        db.query(FeeEarner)
+        .join(Client, FeeEarner.client_id == Client.id)
+        .filter(Client.agency_id == agency_id, FeeEarner.email == subject_email)
+        .all()
+    )
+    for e in earners:
+        e.name = placeholder
+        e.email = f"erased-{e.id}@redacted.local"
+        e.is_active = False
+        summary["redacted"].append(f"fee_earner:{e.id}")
 
     db.flush()
     return summary

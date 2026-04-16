@@ -135,7 +135,7 @@ def create_journal_entry(
         entry_date=data.entry_date,
         description=data.description,
         reference=data.reference,
-        posted_by=current_user.sub,
+        posted_by=current_user.id,
     )
     db.add(entry)
     db.flush()  # get entry.id
@@ -235,7 +235,7 @@ def reverse_journal_entry(
         entry_date=reversal_date or datetime.now(),
         description=f"REVERSAL of #{original.id}: {original.description or ''}",
         reference=original.reference,
-        posted_by=current_user.sub,
+        posted_by=current_user.id,
         is_reversal=True,
         reversed_id=original.id,
     )

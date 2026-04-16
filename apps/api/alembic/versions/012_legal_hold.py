@@ -52,10 +52,8 @@ def upgrade() -> None:
         """
         CREATE POLICY legal_holds_agency_isolation ON legal_holds
         USING (
-            agency_id = COALESCE(
-                NULLIF(current_setting('app.current_agency_id', true), '')::int,
-                agency_id
-            )
+            current_setting('app.current_agency_id', true) = '0'
+            OR agency_id = NULLIF(current_setting('app.current_agency_id', true), '')::int
         )
         """
     )

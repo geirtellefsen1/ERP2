@@ -54,7 +54,10 @@ def upgrade() -> None:
     op.execute(
         "CREATE POLICY onboarding_progress_agency_isolation "
         "ON onboarding_progress "
-        "USING (agency_id = current_setting('app.current_agency_id')::int)"
+        "USING ("
+        "  current_setting('app.current_agency_id', true) = '0'"
+        "  OR agency_id = NULLIF(current_setting('app.current_agency_id', true), '')::int"
+        ")"
     )
 
 

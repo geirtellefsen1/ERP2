@@ -20,7 +20,7 @@ interface OnboardingState {
 }
 
 async function fetchState(): Promise<OnboardingState> {
-  const res = await fetch(`${API_BASE}/onboarding/state`, {
+  const res = await fetch(`${API_BASE}/api/v1/onboarding/state`, {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch onboarding state");
@@ -31,7 +31,7 @@ async function saveState(
   currentStep: number,
   stepData?: Record<string, unknown>
 ): Promise<OnboardingState> {
-  const res = await fetch(`${API_BASE}/onboarding/state`, {
+  const res = await fetch(`${API_BASE}/api/v1/onboarding/state`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     credentials: "include",

@@ -13,7 +13,7 @@ from app.database import get_db
 from app.auth import get_current_user, CurrentUser
 from app.models import OnboardingProgress
 
-router = APIRouter(prefix="/onboarding", tags=["onboarding"])
+router = APIRouter(prefix="/api/v1/onboarding", tags=["onboarding"])
 
 STEP_NAMES = [
     "Agency Setup",

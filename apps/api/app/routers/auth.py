@@ -186,7 +186,7 @@ def refresh_token(body: RefreshRequest):
 def get_me(current_user: AuthUser = Depends(get_current_user)):
     """Return the currently authenticated user's info."""
     return {
-        "sub": current_user.sub,
+        "sub": str(current_user.id),
         "agency_id": current_user.agency_id,
         "role": current_user.role,
         "email": current_user.email,

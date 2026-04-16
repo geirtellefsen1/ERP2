@@ -17,7 +17,7 @@ from app.services.billing.stripe_client import (
     create_billing_portal_session,
 )
 
-router = APIRouter(prefix="/billing", tags=["billing"])
+router = APIRouter(prefix="/api/v1/billing", tags=["billing"])
 logger = logging.getLogger(__name__)
 
 # Map tiers to Stripe price IDs.  In production these come from env vars /

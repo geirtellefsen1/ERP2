@@ -25,6 +25,11 @@ class MFACodeRequest(BaseModel):
     code: str
 
 
+class MFAEnableRequest(BaseModel):
+    secret: str
+    code: str
+
+
 class MFAVerifyRequest(BaseModel):
     user_id: int
     code: str
@@ -49,24 +54,23 @@ def mfa_setup(
 
 @router.post("/enable")
 def mfa_enable(
-    body: MFACodeRequest,
+    body: MFAEnableRequest,
     current_user: CurrentUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Verify a TOTP code and enable MFA for the authenticated user."""
+    """Verify a TOTP code against the provided secret and enable MFA.
+
+    The client passes the secret from /setup + the code the user entered.
+    This avoids storing the secret until verification succeeds.
+    """
     user = db.query(User).filter(User.id == current_user.id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if not user.mfa_secret:
-        raise HTTPException(
-            status_code=400,
-            detail="Call /setup first and store the secret on the user",
-        )
-
-    if not verify_totp(user.mfa_secret, body.code):
+    if not verify_totp(body.secret, body.code):
         raise HTTPException(status_code=400, detail="Invalid TOTP code")
 
+    user.mfa_secret = body.secret
     user.mfa_enabled = True
     db.commit()
     return {"detail": "MFA enabled successfully"}
@@ -77,16 +81,19 @@ def mfa_verify(
     body: MFAVerifyRequest,
     db: Session = Depends(get_db),
 ):
-    """Verify a TOTP code during login (no auth header required)."""
-    user = db.query(User).filter(User.id == body.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+    """Verify a TOTP code during login (no auth header required).
 
-    if not user.mfa_enabled or not user.mfa_secret:
-        raise HTTPException(status_code=400, detail="MFA is not enabled for this user")
+    Returns a uniform 400 for all failure cases to avoid leaking whether
+    a user exists or has MFA enabled.
+    """
+    _invalid = HTTPException(status_code=400, detail="Invalid MFA verification")
+
+    user = db.query(User).filter(User.id == body.user_id).first()
+    if not user or not user.mfa_enabled or not user.mfa_secret:
+        raise _invalid
 
     if not verify_totp(user.mfa_secret, body.code):
-        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+        raise _invalid
 
     return {"detail": "MFA verification successful"}
 
