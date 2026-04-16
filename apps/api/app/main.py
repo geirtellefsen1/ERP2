@@ -17,6 +17,7 @@ from app.routers import (
     agent,
     payroll,
     integrations,
+    billing_stripe,
 )
 
 settings = get_settings()
@@ -54,6 +55,7 @@ app.include_router(ai.router)
 app.include_router(agent.router)
 app.include_router(payroll.router)
 app.include_router(integrations.router)
+app.include_router(billing_stripe.router)
 
 
 class HealthResponse(BaseModel):
