@@ -16,6 +16,7 @@ from app.database import get_db
 from app.models import Transaction, JournalEntry, JournalLine, Account, Invoice, Client
 from app.auth import AuthUser, get_current_user
 from app.config import get_settings
+from app.middleware.feature_gate import require_feature
 
 router = APIRouter(prefix="/api/v1/ai", tags=["ai"])
 settings = get_settings()
@@ -108,7 +109,7 @@ async def call_claude(
 async def suggest_gl_code(
     data: GLCodingRequest,
     db: Session = Depends(get_db),
-    current_user: AuthUser = Depends(get_current_user),
+    current_user: AuthUser = Depends(require_feature("ai_chat")),
 ):
     """
     Use Claude to suggest the best GL account code for a transaction description.

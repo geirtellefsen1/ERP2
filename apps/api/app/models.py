@@ -737,3 +737,20 @@ class PasswordResetToken(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
     used_at = Column(DateTime(timezone=True))
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class AgencySubscription(Base):
+    """Tracks an agency's Stripe subscription and tier."""
+    __tablename__ = "agency_subscriptions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agency_id = Column(Integer, ForeignKey("agencies.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    stripe_customer_id = Column(String(255), nullable=False)
+    stripe_subscription_id = Column(String(255))
+    tier = Column(String(50), nullable=False, default="starter")  # starter, growth, enterprise
+    status = Column(String(50), nullable=False, default="active")  # active, past_due, canceled, trialing
+    current_period_end = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    agency = relationship("Agency")
