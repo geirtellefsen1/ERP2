@@ -18,6 +18,7 @@ import {
   ChevronsUpDown,
   CheckSquare,
   CreditCard,
+  Hotel,
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { useState, useEffect } from "react"
@@ -45,6 +46,12 @@ const NAV_SECTIONS = [
     items: [
       { href: "/dashboard/reports", label: "Reports", icon: BarChart3 },
       { href: "/dashboard/ai", label: "AI Assistant", icon: Sparkles },
+    ],
+  },
+  {
+    label: "Verticals",
+    items: [
+      { href: "/dashboard/hospitality", label: "Hospitality", icon: Hotel },
     ],
   },
 ]
