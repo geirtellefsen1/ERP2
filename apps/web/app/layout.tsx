@@ -1,7 +1,6 @@
-import type { Metadata } from "next"
-import "./globals.css"
-import { ToastProvider } from "@/components/ui/toast"
-import { I18nProvider } from "@/i18n/provider"
+import type { Metadata } from 'next'
+import PublicShell from '@/components/PublicShell'
+import './globals.css'
 
 export const metadata: Metadata = {
   title: {
@@ -17,11 +16,10 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className="min-h-screen">
-        <I18nProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </I18nProvider>
+    <html lang="en">
+      <body className="min-h-screen bg-slate-50">
+        {children}
+        <PublicShell />
       </body>
     </html>
   )
