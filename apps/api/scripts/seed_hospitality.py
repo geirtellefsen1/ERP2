@@ -44,11 +44,13 @@ from app.models import (
     Client,
     DailyRevenueImport,
     DailyRevenueLine,
+    InboxItem,
     Outlet,
     Property,
     RoomCategory,
     Transaction,
 )
+from app.services.inbox.extraction import extract_from_filename
 
 
 # Seeded RNG so repeated runs produce identical data
@@ -504,6 +506,97 @@ def _create_ai_activity(db: Session, agency: Agency, client: Client) -> None:
     db.commit()
 
 
+# --- Inbox items: the AI-first receipt drop zone -----------------------------
+
+
+def _create_inbox_items(
+    db: Session, agency: Agency, client: Client, accounts: dict[str, Account]
+) -> None:
+    """Create 12 inbox items showing the full AI-first workflow.
+
+    Mix of:
+      - 5 pending review (high-confidence AI extraction, awaiting approval)
+      - 4 already-approved (tied to a Transaction, what "good" looks like)
+      - 2 low-confidence (AI failed, manual coding required)
+      - 1 rejected (duplicate that the accountant rejected)
+    """
+    now = datetime.now(timezone.utc)
+
+    # (filename, hours_ago, status_override, source)
+    pending_extracted = [
+        # Recent uploads with high-confidence extraction
+        ("tine_2026-04-15_4120nok_inv-2401.pdf", 2, None, "email"),
+        ("vinmonopolet_2026-04-15_7200nok_inv-3815.pdf", 4, None, "email"),
+        ("hansa_2026-04-14_4500nok.pdf", 22, None, "ehf"),
+        ("booking_2026-04-12_12500nok.pdf", 48, None, "email"),
+        ("hafslund_2026-04-15_26100nok.pdf", 6, None, "email"),  # the spike
+    ]
+
+    approved = [
+        ("bama_2026-04-10_2380nok_inv-4421.pdf", 120, "approved", "email"),
+        ("berglin_2026-04-09_1850nok.pdf", 168, "approved", "email"),
+        ("ringnes_2026-04-08_1180nok.pdf", 192, "approved", "email"),
+        ("lilleborg_2026-04-07_1450nok.pdf", 216, "approved", "mobile"),
+    ]
+
+    pending_low_confidence = [
+        ("scan_2026-04-14_001.jpg", 26, None, "mobile"),
+        ("IMG_4582.jpeg", 30, None, "mobile"),
+    ]
+
+    rejected = [
+        # The duplicate Bama invoice from the embedded problems
+        ("bama_2026-04-13_2415nok_DUPLICATE.pdf", 18, "rejected", "email"),
+    ]
+
+    all_items = pending_extracted + approved + pending_low_confidence + rejected
+
+    for filename, hours_ago, status_override, source in all_items:
+        result = extract_from_filename(filename)
+
+        suggested_account_id = None
+        if result.suggested_account_code and result.suggested_account_code in accounts:
+            suggested_account_id = accounts[result.suggested_account_code].id
+
+        extracted_date_dt = None
+        if result.date:
+            extracted_date_dt = datetime.combine(
+                result.date, datetime.min.time(), tzinfo=timezone.utc
+            )
+
+        item = InboxItem(
+            agency_id=agency.id,
+            client_id=client.id,
+            source=source,
+            original_filename=filename,
+            status=status_override or ("extracted" if result.vendor else "pending"),
+            extracted_vendor=result.vendor,
+            extracted_date=extracted_date_dt,
+            extracted_amount_minor=result.amount_minor,
+            extracted_vat_minor=result.vat_minor,
+            extracted_currency=result.currency,
+            extracted_invoice_number=result.invoice_number,
+            suggested_account_id=suggested_account_id,
+            suggested_outlet_type=result.suggested_outlet_type,
+            ai_confidence=result.confidence,
+            ai_reasoning=result.reasoning,
+            created_at=now - timedelta(hours=hours_ago),
+        )
+
+        if status_override == "approved":
+            item.approved_at = now - timedelta(hours=hours_ago - 1)
+        elif status_override == "rejected":
+            item.rejected_at = now - timedelta(hours=hours_ago - 1)
+            item.rejection_reason = (
+                "Possible duplicate of invoice INV-4421 from 12 April. "
+                "Cross-checked against Bama invoice register."
+            )
+
+        db.add(item)
+
+    db.commit()
+
+
 # --- Main --------------------------------------------------------------------
 
 
@@ -515,6 +608,7 @@ def _wipe_fjordvik(db: Session, client: Client) -> None:
     """Cascade delete via the client. Property -> RoomCategory/Outlet/imports
     will cascade through ondelete=CASCADE FKs. AI activity scoped to this
     client is removed explicitly."""
+    db.query(InboxItem).filter(InboxItem.client_id == client.id).delete()
     db.query(AiActivityFeed).filter(AiActivityFeed.client_id == client.id).delete()
     db.query(Transaction).filter(Transaction.client_id == client.id).delete()
     db.query(Account).filter(Account.client_id == client.id).delete()
@@ -568,6 +662,9 @@ def main() -> int:
 
         _create_ai_activity(db, agency, client)
         print("✓ 8 AI activity feed items (4 require review)")
+
+        _create_inbox_items(db, agency, client, accounts)
+        print("✓ 12 inbox items (5 awaiting review, 4 approved, 2 low-confidence, 1 rejected)")
 
         print()
         print("🎉 Hospitality demo seed complete!")
