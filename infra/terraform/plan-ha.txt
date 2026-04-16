@@ -1,0 +1,14 @@
+Terraform Plan Summary (generated manually — run `terraform plan` to verify)
+
+Resources to be created:
++ digitalocean_database_replica.api_read_replica
++ digitalocean_loadbalancer.api_lb
++ digitalocean_droplet.api[0]
++ digitalocean_droplet.api[1]
+
+Estimated monthly cost delta: ~$40/month
+- DB read replica: ~$15/month
+- Extra API droplet: ~$12/month
+- Load balancer: ~$12/month
+
+NOTE: Do NOT apply without reviewing the full plan output.
