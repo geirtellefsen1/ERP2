@@ -20,6 +20,7 @@ from app.routers import (
     billing_stripe,
     onboarding,
     dsr,
+    mfa,
 )
 
 settings = get_settings()
@@ -29,6 +30,11 @@ app = FastAPI(
     version="1.4.0",
     description="AI-First Business Process Outsourcing Platform",
 )
+
+# ── Observability (Sentry + OpenTelemetry) ────────────────────────────────
+from app.observability import setup_observability  # noqa: E402
+
+setup_observability(app)
 
 # CORS — allow the frontend (and any other origins listed in CORS_ORIGINS env var)
 allowed_origins = [
@@ -60,6 +66,7 @@ app.include_router(integrations.router)
 app.include_router(billing_stripe.router)
 app.include_router(onboarding.router)
 app.include_router(dsr.router)
+app.include_router(mfa.router)
 
 
 class HealthResponse(BaseModel):
@@ -75,3 +82,9 @@ async def health():
 @app.get("/")
 async def root():
     return {"message": "BPO Nexus API", "version": "1.4.0", "docs": "/docs"}
+
+
+@app.get("/debug/sentry")
+async def sentry_debug():
+    """Raise an error to verify Sentry integration is working."""
+    raise RuntimeError("Sentry test error")

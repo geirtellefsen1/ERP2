@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed CORS origins (e.g. "http://localhost:3000,https://app.example.com")
     cors_origins: str = "http://localhost:3000,http://localhost:8000"
 
+    # ── Observability ────────────────────────────────────────────────────────
+    sentry_dsn: str = ""
+    sentry_environment: str = "development"
+    otel_exporter_otlp_endpoint: str = ""
+    otel_service_name: str = "bpo-nexus-api"
+
     class Config:
         env_file = ".env"
         extra = "allow"
