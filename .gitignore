@@ -45,3 +45,4 @@ crash.*.log
 # Testing
 coverage/
 .pytest_cache/
+.claude/
