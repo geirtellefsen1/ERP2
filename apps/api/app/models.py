@@ -58,6 +58,8 @@ class User(Base):
     role = Column(String(50))  # admin, agent, client_admin, client_user
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    mfa_secret = Column(String(64), nullable=True)
+    mfa_enabled = Column(Boolean, default=False)
 
     agency = relationship("Agency", back_populates="users")
 
