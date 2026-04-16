@@ -19,6 +19,7 @@ import {
   CheckSquare,
   CreditCard,
   Hotel,
+  Inbox,
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { useState, useEffect } from "react"
@@ -29,6 +30,7 @@ const NAV_SECTIONS = [
     label: "Overview",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/dashboard/inbox", label: "Inbox", icon: Inbox },
       { href: "/dashboard/clients", label: "Clients", icon: Users },
       { href: "/dashboard/tasks", label: "Tasks", icon: CheckSquare },
     ],

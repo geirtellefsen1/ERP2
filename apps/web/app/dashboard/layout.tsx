@@ -3,7 +3,9 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Sidebar from "@/components/Sidebar"
+import TopBar from "@/components/TopBar"
 import { ToastProvider } from "@/components/ui/toast"
+import { ClientProvider } from "@/lib/client-context"
 
 export default function DashboardLayout({
   children,
@@ -21,12 +23,15 @@ export default function DashboardLayout({
 
   return (
     <ToastProvider>
-      <div className="flex h-screen overflow-hidden">
-        <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-background">
-          <div className="mx-auto max-w-6xl px-6 py-6">{children}</div>
-        </main>
-      </div>
+      <ClientProvider>
+        <div className="flex h-screen overflow-hidden">
+          <Sidebar />
+          <main className="flex-1 overflow-y-auto bg-background">
+            <TopBar />
+            <div className="mx-auto max-w-6xl px-6 py-6">{children}</div>
+          </main>
+        </div>
+      </ClientProvider>
     </ToastProvider>
   )
 }
