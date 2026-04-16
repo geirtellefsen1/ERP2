@@ -19,9 +19,11 @@ os.environ.setdefault(
     "CLAUDE_API_KEY", "sk-ant-test-key-placeholder-for-jwt-signing-00"
 )
 
+from fastapi.testclient import TestClient
 from sqlalchemy import text
 from app.database import SessionLocal, engine
 from app.models import Base
+from app.main import app
 
 
 # ── Schema setup ──────────────────────────────────────────────────────────────
@@ -71,3 +73,9 @@ def db() -> Generator:
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture()
+def client():
+    """Provide a FastAPI TestClient for integration tests."""
+    return TestClient(app)

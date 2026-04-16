@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     debug: bool = False
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/bpo_nexus"
     redis_url: str = "redis://localhost:6379/0"
+    jwt_secret: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
     auth0_domain: str = ""
     auth0_audience: str = ""
     claude_api_key: str = ""

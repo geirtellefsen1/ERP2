@@ -1,5 +1,5 @@
 """
-Auth router — login, register, token refresh.
+Auth router — login, register, token refresh, logout.
 For the MVP: username/password → internal JWT issued by BPO Nexus API.
 When Auth0 is configured: delegates to Auth0 Universal Login.
 """
@@ -17,6 +17,12 @@ from app.auth import AuthUser, get_current_user
 from app.config import get_settings
 from app.services.jwt_signing import get_signing_key
 from app.services.rate_limit import rate_limit
+from app.services.auth.refresh import (
+    issue_pair,
+    rotate,
+    revoke_family,
+    _decode,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -28,6 +34,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
 # ─── Schemas ──────────────────────────────────────────────────────────────────
 
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
@@ -35,9 +42,20 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
     expires_in: int
     user: dict
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
+
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
 
 
 class RegisterRequest(BaseModel):
@@ -77,8 +95,7 @@ def login(
     ),
 ):
     """
-    Username/password login. Issues an internal JWT (MVP).
-    Production: replace with Auth0 Universal Login redirect.
+    Username/password login. Issues an internal JWT + refresh token pair.
     """
     user = db.query(User).filter(User.email == data.email).first()
     if not user or not pwd_context.verify(data.password, user.hashed_password):
@@ -90,8 +107,10 @@ def login(
         raise HTTPException(status_code=403, detail="Account is disabled")
 
     token = create_access_token(user)
+    pair = issue_pair(user_id=user.id, agency_id=user.agency_id)
     return TokenResponse(
         access_token=token,
+        refresh_token=pair["refresh_token"],
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user={
             "id": user.id,
@@ -123,8 +142,10 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     db.refresh(user)
 
     token = create_access_token(user)
+    pair = issue_pair(user_id=user.id, agency_id=user.agency_id)
     return TokenResponse(
         access_token=token,
+        refresh_token=pair["refresh_token"],
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user={
             "id": user.id,
@@ -136,6 +157,20 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/refresh", response_model=RefreshTokenResponse)
+def refresh_token(body: RefreshRequest):
+    """Exchange a valid refresh token for a new access + refresh pair.
+
+    Implements reuse detection: if the presented refresh token has already
+    been consumed the entire family is revoked and 401 is returned.
+    """
+    try:
+        pair = rotate(body.refresh_token)
+    except ValueError as exc:
+        raise HTTPException(status_code=401, detail=str(exc))
+    return RefreshTokenResponse(**pair)
+
+
 @router.get("/me", response_model=dict)
 def get_me(current_user: AuthUser = Depends(get_current_user)):
     """Return the currently authenticated user's info."""
@@ -145,6 +180,34 @@ def get_me(current_user: AuthUser = Depends(get_current_user)):
         "role": current_user.role,
         "email": current_user.email,
     }
+
+
+@router.post("/logout")
+def logout(current_user: AuthUser = Depends(get_current_user)):
+    """Log out the current user."""
+    return {"detail": "Logged out successfully"}
+
+
+@router.post("/logout-session")
+def logout_session(
+    body: RefreshRequest,
+    current_user: AuthUser = Depends(get_current_user),
+):
+    """Revoke the entire refresh-token family for the given refresh token."""
+    try:
+        payload = _decode(body.refresh_token)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid refresh token")
+
+    if payload.get("type") != "refresh":
+        raise HTTPException(status_code=400, detail="Expected refresh token")
+
+    family = payload.get("family")
+    if not family:
+        raise HTTPException(status_code=400, detail="Refresh token has no family")
+
+    revoke_family(family)
+    return {"detail": "Session revoked"}
 
 
 @router.post("/auth0/callback")
@@ -191,8 +254,10 @@ async def auth0_callback(code: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found — please contact admin")
 
     internal_token = create_access_token(user)
+    pair = issue_pair(user_id=user.id, agency_id=user.agency_id)
     return TokenResponse(
         access_token=internal_token,
+        refresh_token=pair["refresh_token"],
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         user={
             "id": user.id,
