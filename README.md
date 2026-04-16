@@ -1,93 +1,133 @@
-# BPO Nexus
+# ClaudERP — AI-First Nordic Accounting BPO Platform
 
-> AI-First Business Process Outsourcing Platform — built by Saga Advisory AS
+> Built by **Saga Advisory AS** | Live at [erp.tellefsen.org](https://erp.tellefsen.org)
 
-**Stack:** FastAPI · Next.js 14 · PostgreSQL 16 · Redis 7 · Docker · Terraform · Claude API
+**Stack:** FastAPI (Python 3.12) · Next.js 14 · Expo (React Native) · PostgreSQL 16 · Redis 7 · Claude API
 
 ---
 
-## 🚀 Quick Start
+## Architecture Overview
+
+| Layer     | Technology           | Description                                      |
+|-----------|----------------------|--------------------------------------------------|
+| **API**   | FastAPI              | REST backend with 5-tier service architecture    |
+| **Web**   | Next.js 14           | App Router dashboard for accountants and clients |
+| **Mobile**| Expo (React Native)  | iOS/Android app for on-the-go access             |
+| **Infra** | Docker, Terraform    | DigitalOcean deployment with Cloudflare CDN      |
+| **DB**    | PostgreSQL 16        | Multi-tenant with row-level security             |
+| **Cache** | Redis 7              | Session management, refresh-token revocation     |
+| **AI**    | Claude API           | Document processing, anomaly detection, chat     |
+
+The API follows a 5-tier architecture: **core** (auth, tenancy) -> **accounting** (journals, chart of accounts) -> **banking** (reconciliation, open banking) -> **verticals** (hospitality, professional services) -> **integrations** (Aiia, Stripe, WhatsApp).
+
+---
+
+## Phase Progress
+
+| Phase | Scope                              | Status      |
+|-------|-------------------------------------|-------------|
+| P1    | Auth, multi-tenancy, core API       | In Progress |
+| P2    | Accounting engine, bank recon       | In Progress |
+| P3    | Verticals, payroll, filing          | In Progress |
+| P4    | AI features, document processing    | Planned     |
+| P5    | Mobile app, client portal           | Planned     |
+
+---
+
+## Quick Start
 
 ```bash
-# 1. Clone & enter
+# 1. Clone and enter
 git clone https://github.com/geirtellefsen1/bpo-nexus.git
 cd bpo-nexus
 
-# 2. Start all services
+# 2. Copy environment config
+cp .env.example .env
+
+# 3. Start all services
 docker compose up -d
 
-# 3. Verify
-curl http://localhost:8000/health     → {"status":"ok"}
-open http://localhost:3000           → BPO Nexus landing page
-open http://localhost:8000/docs       → Swagger API docs
+# 4. Verify
+curl http://localhost:8000/health          # {"status":"ok"}
+open http://localhost:3000                 # Web dashboard
+open http://localhost:8000/docs            # Swagger API docs
 ```
 
 ---
 
-## 📁 Project Structure
+## Testing
+
+```bash
+# Run the full API test suite (~27 modules)
+cd apps/api
+pip install -r requirements.txt
+pytest tests/ -v
+
+# Run web tests
+cd apps/web
+pnpm install && pnpm test
+```
+
+---
+
+## Project Structure
 
 ```
-bpo-nexus/
+ClaudERP/
 ├── apps/
-│   ├── api/               FastAPI backend (Python 3.12)
+│   ├── api/                FastAPI backend
 │   │   ├── app/
-│   │   │   ├── main.py    FastAPI app entry point
-│   │   │   ├── config.py  Pydantic settings
-│   │   │   └── models.py  SQLAlchemy models
-│   │   └── requirements.txt
-│   └── web/               Next.js 14 frontend
-│       ├── app/           App Router pages
-│       └── package.json
+│   │   │   ├── main.py     App entry point + router registration
+│   │   │   ├── routers/    REST endpoints (auth, journal, billing, ...)
+│   │   │   ├── services/   Business logic (auth, banking, payroll, ...)
+│   │   │   ├── jurisdictions/  NO/SE/FI tax and compliance rules
+│   │   │   └── models.py   SQLAlchemy models
+│   │   ├── alembic/        Database migrations
+│   │   └── tests/          Pytest test suite
+│   ├── web/                Next.js 14 frontend
+│   └── mobile/             Expo React Native app
 ├── packages/
-│   └── shared/            Shared TypeScript types
+│   └── shared/             Shared TypeScript types
 ├── infra/
-│   ├── docker/            Dockerfiles
-│   └── terraform/         DigitalOcean IaC
+│   ├── docker/             Dockerfiles
+│   ├── terraform/          DigitalOcean IaC
+│   ├── cloudflare/         CDN and DNS config
+│   └── uptime/             Health check probes
+├── docs/                   Architecture, compliance, runbooks
 ├── docker-compose.yml
 └── .env.example
 ```
 
 ---
 
-## 📋 Sprint Progress
+## Documentation
 
-| Sprint | Goal                        | Status |
-|--------|-----------------------------|--------|
-| 1      | Project scaffold            | ✅ Done |
-| 2      | Database schema + migrations | 🔜 Next |
-| ...    | ...                         | ...    |
+See the [docs/](docs/) directory:
 
-Full plan: 22 sprints across 5 phases (see BPO Nexus Master Build Prompt)
-
----
-
-## 🔑 Key APIs & Credentials
-
-| Service        | Purpose                        | Config via |
-|----------------|--------------------------------|------------|
-| Auth0          | JWT auth, SSO, MFA             | `.env`     |
-| Claude API     | AI processing layer            | `.env`     |
-| DigitalOcean   | Droplets, DB, Spaces, DNS       | Terraform  |
-| Twilio         | WhatsApp (via OpenClaw)        | `.env`     |
-| Resend         | Transactional email            | `.env`     |
-| TrueLayer      | Open Banking (UK/EU)           | `.env`     |
-| AWS Textract   | Document OCR                   | `.env`     |
+- [Architecture](docs/architecture.md) — system architecture overview
+- [Deployment](docs/deploy.md) — deployment guide
+- [Developer Onboarding](docs/developer-onboarding.md) — getting started
+- [Jurisdiction Pivot](docs/pivot.md) — ZA/NO/UK to NO/SE/FI pivot
+- [ADRs](docs/adr/) — architecture decision records
+- [Compliance](docs/compliance/) — RoPA, DPIA
+- [Runbooks](docs/runbooks/) — incident response, breach notification
+- [SLA](docs/public/sla.md) — service level agreement
 
 ---
 
-## 🧪 Testing
+## Key Integrations
 
-```bash
-# API
-cd apps/api && pip install -q pytest pytest-asyncio && pytest tests/ -v
-
-# Web
-cd apps/web && pnpm test
-```
+| Service         | Purpose                          |
+|-----------------|----------------------------------|
+| Claude API      | AI document processing and chat  |
+| Aiia (Mastercard) | Nordic open banking            |
+| Stripe          | Subscription billing             |
+| BankID          | Norwegian/Swedish authentication |
+| Altinn          | Norwegian tax filing             |
+| Skatteverket    | Swedish tax filing               |
 
 ---
 
-## 📜 License
+## License
 
-Confidential — Saga Advisory AS © 2026
-
+Confidential — Saga Advisory AS 2026
