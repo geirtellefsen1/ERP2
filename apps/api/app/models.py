@@ -667,3 +667,40 @@ class AuditLog(Base):
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+# ─── Phase 1: GDPR Data Subject Rights ─────────────────────────────────
+
+class DsrRequest(Base):
+    """GDPR Data Subject Rights request."""
+    __tablename__ = "dsr_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agency_id = Column(Integer, ForeignKey("agencies.id", ondelete="CASCADE"), nullable=False, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
+    subject_email = Column(String(255), nullable=False, index=True)
+    subject_name = Column(String(255))
+    request_type = Column(String(20), nullable=False)  # access, erasure, portability, rectification
+    status = Column(String(20), nullable=False, default="pending")  # pending, in_progress, completed, rejected
+    received_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    deadline_at = Column(DateTime(timezone=True), nullable=False)  # received_at + 30 days
+    completed_at = Column(DateTime(timezone=True))
+    notes = Column(Text)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    agency = relationship("Agency")
+    artifacts = relationship("DsrArtifact", back_populates="dsr_request", cascade="all, delete-orphan")
+
+
+class DsrArtifact(Base):
+    """Artifact produced by processing a DSR request (e.g., data export zip)."""
+    __tablename__ = "dsr_artifacts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    dsr_request_id = Column(Integer, ForeignKey("dsr_requests.id", ondelete="CASCADE"), nullable=False, index=True)
+    artifact_type = Column(String(50), nullable=False)  # export_zip, erasure_confirmation, etc.
+    uri = Column(String(500), nullable=False)  # storage path or URL
+    sha256 = Column(String(64), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    dsr_request = relationship("DsrRequest", back_populates="artifacts")
