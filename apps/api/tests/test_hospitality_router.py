@@ -54,9 +54,9 @@ def fjordvik_setup():
         client_row = Client(
             agency_id=agency.id,
             name="Fjordvik Hotel",
-            slug="fjordvik",
+            country="NO",
             industry="Hospitality",
-            status="active",
+            is_active=True,
         )
         db.add(client_row)
         db.commit()
