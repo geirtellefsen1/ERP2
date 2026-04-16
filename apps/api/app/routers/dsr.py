@@ -20,6 +20,7 @@ from app.auth import CurrentUser, get_current_user
 from app.database import get_db
 from app.models import DsrRequest, DsrArtifact
 from app.services.dsr import create_artifact, erase_subject_data, export_subject_data
+from app.services.legal_hold import is_on_hold
 
 router = APIRouter(prefix="/api/v1/dsr", tags=["dsr"])
 
@@ -150,6 +151,11 @@ def process_dsr(
         dsr.completed_at = now
 
     elif dsr.request_type == "erasure":
+        if is_on_hold(db, dsr.agency_id, subject_email=dsr.subject_email):
+            raise HTTPException(
+                status_code=409,
+                detail="Erasure blocked by an active legal hold",
+            )
         summary = erase_subject_data(db, dsr.agency_id, dsr.subject_email)
         create_artifact(db, dsr.id, "erasure_confirmation", summary)
         dsr.status = "completed"

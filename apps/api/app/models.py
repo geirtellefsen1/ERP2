@@ -669,6 +669,25 @@ class AuditLog(Base):
     )
 
 
+# ─── Phase 1: Legal Hold ──────────────────────────────────────────────
+
+
+class LegalHold(Base):
+    """Freeze deletion / DSR erasure for flagged tenants, clients, or subjects."""
+    __tablename__ = "legal_holds"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agency_id = Column(Integer, ForeignKey("agencies.id", ondelete="CASCADE"), nullable=False, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id", ondelete="SET NULL"), nullable=True, index=True)
+    subject_email = Column(String(255), nullable=True, index=True)
+    reason = Column(Text, nullable=False)
+    active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    released_at = Column(DateTime(timezone=True))
+
+    agency = relationship("Agency")
+
+
 # ─── Phase 1: GDPR Data Subject Rights ─────────────────────────────────
 
 class DsrRequest(Base):

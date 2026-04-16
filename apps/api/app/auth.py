@@ -20,6 +20,10 @@ class CurrentUser:
     role: str
 
 
+# Backward-compatible alias used by many existing routers.
+AuthUser = CurrentUser
+
+
 async def get_current_user(
     x_user_id: Optional[str] = Header(None),
     x_agency_id: Optional[str] = Header(None),
