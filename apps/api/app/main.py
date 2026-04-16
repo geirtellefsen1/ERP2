@@ -22,6 +22,7 @@ from app.routers import (
     dsr,
     mfa,
     hospitality,
+    inbox,
 )
 
 settings = get_settings()
@@ -69,6 +70,7 @@ app.include_router(onboarding.router)
 app.include_router(dsr.router)
 app.include_router(mfa.router)
 app.include_router(hospitality.router)
+app.include_router(inbox.router)
 
 
 class HealthResponse(BaseModel):

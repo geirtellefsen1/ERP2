@@ -809,3 +809,59 @@ class AiActivityFeed(Base):
     reviewed_at = Column(DateTime(timezone=True))
     reviewed_by_user_id = Column(Integer)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+# ─── Sprint 1: Inbox (the AI-first receipt drop zone) ────────────────────
+
+
+class InboxItem(Base):
+    """Every receipt / invoice / statement that lands in the system.
+
+    AI extracts vendor / date / amount / VAT / suggested_account, then
+    queues for human approval. On approval a Transaction row is created.
+    """
+    __tablename__ = "inbox_items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    agency_id = Column(
+        Integer, ForeignKey("agencies.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    client_id = Column(
+        Integer, ForeignKey("clients.id", ondelete="CASCADE"),
+        nullable=True, index=True,
+    )
+    source = Column(String(20), nullable=False, default="upload")
+    source_reference = Column(String(255))
+    original_filename = Column(String(255))
+    storage_uri = Column(String(500))
+    status = Column(String(20), nullable=False, default="pending")
+
+    extracted_vendor = Column(String(255))
+    extracted_date = Column(DateTime(timezone=True))
+    extracted_amount_minor = Column(Integer)
+    extracted_vat_minor = Column(Integer)
+    extracted_currency = Column(String(3))
+    extracted_invoice_number = Column(String(100))
+    suggested_account_id = Column(
+        Integer, ForeignKey("accounts.id", ondelete="SET NULL")
+    )
+    suggested_outlet_type = Column(String(30))
+    ai_confidence = Column(Numeric(4, 3))
+    ai_reasoning = Column(Text)
+
+    transaction_id = Column(
+        Integer, ForeignKey("transactions.id", ondelete="SET NULL")
+    )
+    approved_at = Column(DateTime(timezone=True))
+    approved_by_user_id = Column(Integer)
+    rejected_at = Column(DateTime(timezone=True))
+    rejection_reason = Column(Text)
+
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    suggested_account = relationship("Account")
+    transaction = relationship("Transaction")
