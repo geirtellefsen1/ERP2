@@ -5,8 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number, currency = "ZAR"): string {
-  return new Intl.NumberFormat("en-ZA", {
+const LOCALE_MAP: Record<string, string> = {
+  NOK: "nb-NO",
+  SEK: "sv-SE",
+  EUR: "fi-FI",
+  GBP: "en-GB",
+  USD: "en-US",
+  ZAR: "en-ZA",
+}
+
+export function formatCurrency(amount: number, currency = "NOK"): string {
+  const locale = LOCALE_MAP[currency] || "nb-NO"
+  return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     minimumFractionDigits: 2,
@@ -14,7 +24,7 @@ export function formatCurrency(amount: number, currency = "ZAR"): string {
 }
 
 export function formatDate(date: string | Date): string {
-  return new Intl.DateTimeFormat("en-ZA", {
+  return new Intl.DateTimeFormat("nb-NO", {
     day: "numeric",
     month: "short",
     year: "numeric",

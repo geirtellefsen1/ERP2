@@ -32,9 +32,16 @@ class Client(Base):
     agency_id = Column(Integer, ForeignKey("agencies.id"), nullable=False)
     name = Column(String(255), nullable=False)
     registration_number = Column(String(100))
-    country = Column(String(3))  # ZA, NO, UK, EU
+    vat_number = Column(String(50))
+    country = Column(String(3))  # NO, SE, FI, UK, EU
     industry = Column(String(100))
+    address = Column(String(500))
+    city = Column(String(100))
+    postal_code = Column(String(20))
+    email = Column(String(255))
+    phone = Column(String(50))
     fiscal_year_end = Column(String(10))  # e.g. "2024-12-31"
+    default_currency = Column(String(3), default="NOK")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -42,6 +49,7 @@ class Client(Base):
     agency = relationship("Agency", back_populates="clients")
     contacts = relationship("ClientContact", back_populates="client")
     invoices = relationship("Invoice", back_populates="client")
+    expenses = relationship("Expense", back_populates="client")
     transactions = relationship("Transaction", back_populates="client")
     payroll_runs = relationship("PayrollRun", back_populates="client")
 
@@ -80,20 +88,29 @@ class ClientContact(Base):
 
 
 class Invoice(Base):
-    """Invoice issued by BPO agency to client"""
+    """Sales invoice — issued by the client to their customer"""
     __tablename__ = "invoices"
 
     id = Column(Integer, primary_key=True, index=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
     invoice_number = Column(String(50), unique=True, nullable=False)
-    status = Column(String(50), default="draft")  # draft, sent, paid, overdue
+    status = Column(String(50), default="draft")  # draft, sent, paid, overdue, credited
+    currency = Column(String(3), default="NOK")
+    subtotal = Column(Numeric(12, 2), nullable=False, default=0)
+    vat_amount = Column(Numeric(12, 2), nullable=False, default=0)
     amount = Column(Numeric(12, 2), nullable=False)
-    currency = Column(String(3), default="ZAR")
+    customer_name = Column(String(255))
+    customer_email = Column(String(255))
+    customer_address = Column(String(500))
+    customer_org_number = Column(String(50))
+    reference = Column(String(255))
+    payment_terms_days = Column(Integer, default=30)
+    notes = Column(Text)
     due_date = Column(DateTime(timezone=True))
     issued_at = Column(DateTime(timezone=True), server_default=func.now())
 
     client = relationship("Client", back_populates="invoices")
-    line_items = relationship("InvoiceLineItem", back_populates="invoice")
+    line_items = relationship("InvoiceLineItem", back_populates="invoice", cascade="all, delete-orphan")
 
 
 class InvoiceLineItem(Base):
@@ -104,9 +121,41 @@ class InvoiceLineItem(Base):
     description = Column(Text, nullable=False)
     quantity = Column(Numeric(10, 2), default=1)
     unit_price = Column(Numeric(12, 2), nullable=False)
+    vat_rate = Column(Numeric(5, 2), default=25)  # NO: 25%, 15% food, 12% room, 0% export
+    vat_amount = Column(Numeric(12, 2), default=0)
     total = Column(Numeric(12, 2), nullable=False)
 
     invoice = relationship("Invoice", back_populates="line_items")
+
+
+class Expense(Base):
+    """Supplier invoice or expense recorded against a client"""
+    __tablename__ = "expenses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    vendor_name = Column(String(255), nullable=False)
+    vendor_org_number = Column(String(50))
+    description = Column(Text)
+    date = Column(DateTime(timezone=True), nullable=False)
+    due_date = Column(DateTime(timezone=True))
+    amount = Column(Numeric(12, 2), nullable=False)
+    vat_amount = Column(Numeric(12, 2), default=0)
+    vat_rate = Column(Numeric(5, 2), default=25)
+    currency = Column(String(3), default="NOK")
+    category = Column(String(50))  # food_beverage, utilities, supplies, maintenance, etc.
+    status = Column(String(20), default="pending")  # pending, approved, paid, rejected
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True)
+    inbox_item_id = Column(Integer, ForeignKey("inbox_items.id"), nullable=True)
+    payment_method = Column(String(30))  # bank_transfer, credit_card, cash, ehf
+    notes = Column(Text)
+    approved_at = Column(DateTime(timezone=True))
+    approved_by_user_id = Column(Integer)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    client = relationship("Client", back_populates="expenses")
+    account = relationship("Account")
 
 
 class Transaction(Base):
@@ -209,7 +258,7 @@ class BankAccount(Base):
     bank_name = Column(String(100))
     account_number = Column(String(50))
     account_type = Column(String(20))  # checking, savings
-    currency = Column(String(3), default="ZAR")
+    currency = Column(String(3), default="NOK")
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

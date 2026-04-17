@@ -59,21 +59,35 @@ class User(UserBase):
 class ClientBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     registration_number: Optional[str] = None
-    country: str = Field(default="ZA", pattern=r"^(ZA|NO|UK|EU)$")
+    vat_number: Optional[str] = None
+    country: str = Field(default="NO", pattern=r"^(NO|SE|FI|UK|EU|ZA)$")
     industry: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    postal_code: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
     fiscal_year_end: Optional[str] = None
+    default_currency: str = Field(default="NOK", max_length=3)
 
 
 class ClientCreate(ClientBase):
-    agency_id: int
+    pass
 
 
 class ClientUpdate(BaseModel):
     name: Optional[str] = None
     registration_number: Optional[str] = None
+    vat_number: Optional[str] = None
     country: Optional[str] = None
     industry: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    postal_code: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
     fiscal_year_end: Optional[str] = None
+    default_currency: Optional[str] = None
     is_active: Optional[bool] = None
 
 
@@ -116,6 +130,7 @@ class InvoiceLineItemBase(BaseModel):
     description: str
     quantity: Decimal = Field(default=Decimal("1"))
     unit_price: Decimal
+    vat_rate: Decimal = Field(default=Decimal("25"))
 
 
 class InvoiceLineItemCreate(InvoiceLineItemBase):
@@ -125,33 +140,110 @@ class InvoiceLineItemCreate(InvoiceLineItemBase):
 class InvoiceLineItem(InvoiceLineItemBase):
     id: int
     invoice_id: int
+    vat_amount: Decimal
     total: Decimal
 
     class Config:
         from_attributes = True
 
 
-class InvoiceBase(BaseModel):
-    invoice_number: str = Field(..., min_length=1, max_length=50)
-    status: str = Field(default="draft", pattern=r"^(draft|sent|paid|overdue)$")
-    amount: Decimal
-    currency: str = Field(default="ZAR", max_length=3)
-    due_date: Optional[datetime] = None
-
-
-class InvoiceCreate(InvoiceBase):
+class InvoiceCreate(BaseModel):
     client_id: int
+    customer_name: str = Field(..., min_length=1, max_length=255)
+    customer_email: Optional[str] = None
+    customer_address: Optional[str] = None
+    customer_org_number: Optional[str] = None
+    currency: str = Field(default="NOK", max_length=3)
+    reference: Optional[str] = None
+    payment_terms_days: int = Field(default=30)
+    notes: Optional[str] = None
     line_items: list[InvoiceLineItemCreate] = []
 
 
 class InvoiceUpdate(BaseModel):
     status: Optional[str] = None
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_address: Optional[str] = None
+    customer_org_number: Optional[str] = None
+    reference: Optional[str] = None
+    notes: Optional[str] = None
 
 
-class Invoice(InvoiceBase):
+class Invoice(BaseModel):
     id: int
     client_id: int
+    invoice_number: str
+    status: str
+    currency: str
+    subtotal: Decimal
+    vat_amount: Decimal
+    amount: Decimal
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_address: Optional[str] = None
+    customer_org_number: Optional[str] = None
+    reference: Optional[str] = None
+    payment_terms_days: Optional[int] = None
+    notes: Optional[str] = None
+    due_date: Optional[datetime] = None
     issued_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+# ─── Expense ──────────────────────────────────────────────────────────────────
+
+class ExpenseCreate(BaseModel):
+    client_id: int
+    vendor_name: str = Field(..., min_length=1, max_length=255)
+    vendor_org_number: Optional[str] = None
+    description: Optional[str] = None
+    date: datetime
+    due_date: Optional[datetime] = None
+    amount: Decimal
+    vat_amount: Decimal = Field(default=Decimal("0"))
+    vat_rate: Decimal = Field(default=Decimal("25"))
+    currency: str = Field(default="NOK", max_length=3)
+    category: Optional[str] = None
+    account_id: Optional[int] = None
+    inbox_item_id: Optional[int] = None
+    payment_method: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ExpenseUpdate(BaseModel):
+    status: Optional[str] = None
+    vendor_name: Optional[str] = None
+    description: Optional[str] = None
+    amount: Optional[Decimal] = None
+    vat_amount: Optional[Decimal] = None
+    category: Optional[str] = None
+    account_id: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class Expense(BaseModel):
+    id: int
+    client_id: int
+    vendor_name: str
+    vendor_org_number: Optional[str] = None
+    description: Optional[str] = None
+    date: datetime
+    due_date: Optional[datetime] = None
+    amount: Decimal
+    vat_amount: Decimal
+    vat_rate: Decimal
+    currency: str
+    category: Optional[str] = None
+    status: str
+    account_id: Optional[int] = None
+    inbox_item_id: Optional[int] = None
+    payment_method: Optional[str] = None
+    notes: Optional[str] = None
+    approved_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
