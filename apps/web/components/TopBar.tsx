@@ -1,21 +1,36 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { ChevronDown, Check, Building2, ExternalLink, X } from "lucide-react"
+import { ChevronDown, Check, Building2, ExternalLink, X, Globe } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useClientContext } from "@/lib/client-context"
 import { Button } from "@/components/ui/button"
+import { useLocale } from "@/i18n/provider"
+import { locales, localeLabels, type Locale } from "@/i18n/config"
+
+const LOCALE_FLAGS: Record<string, string> = {
+  en: "EN",
+  nb: "NO",
+  sv: "SE",
+  fi: "FI",
+}
 
 export default function TopBar() {
   const { clients, selectedClient, setSelectedClientId } = useClientContext()
+  const { locale, setLocale } = useLocale()
   const [open, setOpen] = useState(false)
+  const [langOpen, setLangOpen] = useState(false)
   const [search, setSearch] = useState("")
   const ref = useRef<HTMLDivElement>(null)
+  const langRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
+      }
+      if (langRef.current && !langRef.current.contains(e.target as Node)) {
+        setLangOpen(false)
       }
     }
     document.addEventListener("mousedown", handler)
@@ -79,9 +94,7 @@ export default function TopBar() {
                     <Check
                       className={cn(
                         "h-3.5 w-3.5",
-                        selectedClient === null
-                          ? "opacity-100"
-                          : "opacity-0"
+                        selectedClient === null ? "opacity-100" : "opacity-0"
                       )}
                     />
                     <span className="font-medium">All clients</span>
@@ -107,9 +120,7 @@ export default function TopBar() {
                         <Check
                           className={cn(
                             "h-3.5 w-3.5",
-                            selectedClient?.id === c.id
-                              ? "opacity-100"
-                              : "opacity-0"
+                            selectedClient?.id === c.id ? "opacity-100" : "opacity-0"
                           )}
                         />
                         <span className="font-medium truncate">{c.name}</span>
@@ -135,17 +146,57 @@ export default function TopBar() {
           )}
         </div>
 
-        {selectedClient && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openPortal}
-            title="Open the client's portal view in a new tab"
-          >
-            View as client
-            <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Locale Switcher */}
+          <div className="relative" ref={langRef}>
+            <button
+              onClick={() => setLangOpen((o) => !o)}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+              title="Change language"
+            >
+              <Globe className="h-3.5 w-3.5" />
+              {LOCALE_FLAGS[locale]}
+            </button>
+
+            {langOpen && (
+              <div className="absolute right-0 top-full mt-1 w-44 rounded-md border border-border bg-popover shadow-md z-50 py-1">
+                {locales.map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => {
+                      setLocale(l)
+                      setLangOpen(false)
+                    }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-accent text-left"
+                  >
+                    <Check
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        locale === l ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    <span className="text-xs font-medium text-muted-foreground w-5">
+                      {LOCALE_FLAGS[l]}
+                    </span>
+                    <span>{localeLabels[l]}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {selectedClient && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openPortal}
+              title="Open the client's portal view in a new tab"
+            >
+              View as client
+              <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   )

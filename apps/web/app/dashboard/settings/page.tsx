@@ -7,12 +7,12 @@ import {
   Bell,
   Shield,
   CreditCard,
-  Globe,
   Palette,
   Link2,
   ChevronRight,
   Check,
   Loader2,
+  Globe,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -21,7 +21,7 @@ import { Select } from "@/components/ui/select"
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/components/ui/toast"
-import { apiGet } from "@/lib/api"
+import { apiGet, apiPatch } from "@/lib/api"
 import {
   IntegrationConfigModal,
   type ProviderSchema,
@@ -37,19 +37,9 @@ const SECTIONS = [
   { id: "appearance", label: "Appearance", icon: Palette },
 ]
 
-// Category ordering so the Integrations tab has a predictable shape
-// regardless of how the backend PROVIDERS dict is iterated.
 const CATEGORY_ORDER = [
-  "auth",
-  "identity",
-  "banking",
-  "filing",
-  "storage",
-  "email",
-  "ai",
-  "pms",
-  "whatsapp",
-  "other",
+  "auth", "identity", "banking", "filing", "storage",
+  "email", "ai", "pms", "whatsapp", "other",
 ]
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -69,26 +59,18 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState("agency")
   const { toast } = useToast()
 
-  // Integration catalogue loaded from the API
   const [providers, setProviders] = useState<ProviderSchema[] | null>(null)
   const [providerStatus, setProviderStatus] = useState<
     Record<string, { configured: boolean; last_verified_at: string | null }>
   >({})
   const [providersLoading, setProvidersLoading] = useState(false)
-  const [editingProvider, setEditingProvider] = useState<ProviderSchema | null>(
-    null
-  )
+  const [editingProvider, setEditingProvider] = useState<ProviderSchema | null>(null)
 
-  // Load providers when the Integrations tab becomes active.
-  // Reloads on demand when a save completes so status badges stay fresh.
   const loadProviders = async () => {
     setProvidersLoading(true)
     try {
-      const list = await apiGet<ProviderSchema[]>(
-        "/api/v1/integrations/providers"
-      )
+      const list = await apiGet<ProviderSchema[]>("/api/v1/integrations/providers")
       setProviders(list)
-      // Fetch status for every provider in parallel
       const statuses = await Promise.all(
         list.map(async (p) => {
           try {
@@ -96,10 +78,7 @@ export default function SettingsPage() {
               is_configured: boolean
               last_verified_at: string | null
             }>(`/api/v1/integrations/${p.key}`)
-            return [p.key, {
-              configured: cfg.is_configured,
-              last_verified_at: cfg.last_verified_at,
-            }] as const
+            return [p.key, { configured: cfg.is_configured, last_verified_at: cfg.last_verified_at }] as const
           } catch {
             return [p.key, { configured: false, last_verified_at: null }] as const
           }
@@ -122,29 +101,102 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSection])
 
+  // Agency settings — loaded from API
   const [agencyForm, setAgencyForm] = useState({
-    name: "BPO Nexus Demo",
-    slug: "bpo-nexus-demo",
-    country: "ZA",
-    timezone: "Africa/Johannesburg",
-  })
-
-  const [profileForm, setProfileForm] = useState({
     name: "",
+    slug: "",
+    countries_enabled: "",
+  })
+  const [agencyLoading, setAgencyLoading] = useState(false)
+  const [agencySaving, setAgencySaving] = useState(false)
+
+  useEffect(() => {
+    if (activeSection === "agency" && !agencyForm.name) {
+      setAgencyLoading(true)
+      apiGet<{ name: string; slug: string; countries_enabled: string }>("/api/v1/agencies/me")
+        .then((data) => {
+          setAgencyForm({
+            name: data.name || "",
+            slug: data.slug || "",
+            countries_enabled: data.countries_enabled || "NO,SE",
+          })
+        })
+        .catch(() => toast("Failed to load agency settings"))
+        .finally(() => setAgencyLoading(false))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection])
+
+  async function saveAgency() {
+    setAgencySaving(true)
+    try {
+      await apiPatch("/api/v1/agencies/me", {
+        name: agencyForm.name,
+        countries_enabled: agencyForm.countries_enabled,
+      })
+      toast("Agency settings saved")
+    } catch (e: any) {
+      toast(e.message || "Failed to save", "error")
+    } finally {
+      setAgencySaving(false)
+    }
+  }
+
+  // Profile — loaded from API
+  const [profileForm, setProfileForm] = useState({
+    full_name: "",
     email: "",
     role: "admin",
   })
+  const [profileLoading, setProfileLoading] = useState(false)
+  const [profileSaving, setProfileSaving] = useState(false)
 
   useEffect(() => {
+    if (activeSection === "profile" && !profileForm.full_name) {
+      setProfileLoading(true)
+      apiGet<{ full_name: string | null; email: string; role: string }>("/api/v1/users/me")
+        .then((data) => {
+          setProfileForm({
+            full_name: data.full_name || "",
+            email: data.email || "",
+            role: data.role || "admin",
+          })
+        })
+        .catch(() => {
+          try {
+            const user = JSON.parse(localStorage.getItem("bpo_user") || "{}")
+            setProfileForm({
+              full_name: user.full_name || user.email?.split("@")[0] || "",
+              email: user.email || "",
+              role: user.role || "admin",
+            })
+          } catch {}
+        })
+        .finally(() => setProfileLoading(false))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection])
+
+  async function saveProfile() {
+    setProfileSaving(true)
     try {
-      const user = JSON.parse(localStorage.getItem("bpo_user") || "{}")
-      setProfileForm({
-        name: user.email?.split("@")[0] || "",
-        email: user.email || "",
-        role: user.role || "admin",
+      const result = await apiPatch<{ full_name: string; email: string }>("/api/v1/users/me", {
+        full_name: profileForm.full_name,
+        email: profileForm.email,
       })
-    } catch {}
-  }, [])
+      const stored = JSON.parse(localStorage.getItem("bpo_user") || "{}")
+      localStorage.setItem("bpo_user", JSON.stringify({
+        ...stored,
+        full_name: result.full_name,
+        email: result.email,
+      }))
+      toast("Profile updated")
+    } catch (e: any) {
+      toast(e.message || "Failed to save", "error")
+    } finally {
+      setProfileSaving(false)
+    }
+  }
 
   const [notifications, setNotifications] = useState({
     email_invoices: true,
@@ -164,7 +216,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Settings Nav */}
         <nav className="lg:col-span-1 space-y-0.5">
           {SECTIONS.map((section) => (
             <button
@@ -183,75 +234,61 @@ export default function SettingsPage() {
           ))}
         </nav>
 
-        {/* Content */}
         <div className="lg:col-span-3 space-y-6">
           {/* Agency Settings */}
           {activeSection === "agency" && (
             <Card>
               <CardHeader>
                 <CardTitle>Agency Details</CardTitle>
-                <CardDescription>
-                  Update your organization information
-                </CardDescription>
+                <CardDescription>Update your organization information</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Agency Name"
-                    value={agencyForm.name}
-                    onChange={(e) =>
-                      setAgencyForm({ ...agencyForm, name: e.target.value })
-                    }
-                  />
-                  <Input
-                    label="Slug"
-                    value={agencyForm.slug}
-                    onChange={(e) =>
-                      setAgencyForm({ ...agencyForm, slug: e.target.value })
-                    }
-                    hint="Used in URLs and portal links"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Select
-                    label="Country"
-                    value={agencyForm.country}
-                    onChange={(e) =>
-                      setAgencyForm({ ...agencyForm, country: e.target.value })
-                    }
-                    options={[
-                      { value: "ZA", label: "South Africa" },
-                      { value: "NO", label: "Norway" },
-                      { value: "UK", label: "United Kingdom" },
-                    ]}
-                  />
-                  <Select
-                    label="Timezone"
-                    value={agencyForm.timezone}
-                    onChange={(e) =>
-                      setAgencyForm({
-                        ...agencyForm,
-                        timezone: e.target.value,
-                      })
-                    }
-                    options={[
-                      {
-                        value: "Africa/Johannesburg",
-                        label: "Africa/Johannesburg (SAST)",
-                      },
-                      { value: "Europe/Oslo", label: "Europe/Oslo (CET)" },
-                      { value: "Europe/London", label: "Europe/London (GMT)" },
-                    ]}
-                  />
-                </div>
-                <div className="flex justify-end pt-2">
-                  <Button
-                    onClick={() => toast("Agency settings saved")}
-                    size="sm"
-                  >
-                    Save Changes
-                  </Button>
-                </div>
+                {agencyLoading ? (
+                  <div className="flex items-center justify-center py-8 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        label="Agency Name"
+                        value={agencyForm.name}
+                        onChange={(e) => setAgencyForm({ ...agencyForm, name: e.target.value })}
+                      />
+                      <Input
+                        label="Slug"
+                        value={agencyForm.slug}
+                        disabled
+                        hint="Used in URLs and portal links"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Select
+                        label="Countries Enabled"
+                        value={agencyForm.countries_enabled}
+                        onChange={(e) => setAgencyForm({ ...agencyForm, countries_enabled: e.target.value })}
+                        options={[
+                          { value: "NO,SE", label: "Norway & Sweden" },
+                          { value: "NO", label: "Norway only" },
+                          { value: "SE", label: "Sweden only" },
+                          { value: "NO,SE,FI", label: "Norway, Sweden & Finland" },
+                          { value: "NO,SE,FI,UK", label: "Nordic + UK" },
+                        ]}
+                      />
+                      <Input
+                        label="Timezone"
+                        value="Europe/Oslo"
+                        disabled
+                        hint="Derived from primary country"
+                      />
+                    </div>
+                    <div className="flex justify-end pt-2">
+                      <Button onClick={saveAgency} size="sm" loading={agencySaving}>
+                        Save Changes
+                      </Button>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
@@ -261,42 +298,41 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Your Profile</CardTitle>
-                <CardDescription>
-                  Manage your personal account settings
-                </CardDescription>
+                <CardDescription>Manage your personal account settings</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Display Name"
-                    value={profileForm.name}
-                    onChange={(e) =>
-                      setProfileForm({ ...profileForm, name: e.target.value })
-                    }
-                  />
-                  <Input
-                    label="Email"
-                    type="email"
-                    value={profileForm.email}
-                    onChange={(e) =>
-                      setProfileForm({ ...profileForm, email: e.target.value })
-                    }
-                  />
-                </div>
-                <Input
-                  label="Role"
-                  value={profileForm.role}
-                  disabled
-                  hint="Contact an admin to change your role"
-                />
-                <div className="flex justify-end pt-2">
-                  <Button
-                    onClick={() => toast("Profile updated")}
-                    size="sm"
-                  >
-                    Save Changes
-                  </Button>
-                </div>
+                {profileLoading ? (
+                  <div className="flex items-center justify-center py-8 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading...
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Input
+                        label="Full Name"
+                        value={profileForm.full_name}
+                        onChange={(e) => setProfileForm({ ...profileForm, full_name: e.target.value })}
+                      />
+                      <Input
+                        label="Email"
+                        type="email"
+                        value={profileForm.email}
+                        onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                      />
+                    </div>
+                    <Input
+                      label="Role"
+                      value={profileForm.role}
+                      disabled
+                      hint="Contact an admin to change your role"
+                    />
+                    <div className="flex justify-end pt-2">
+                      <Button onClick={saveProfile} size="sm" loading={profileSaving}>
+                        Save Changes
+                      </Button>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           )}
@@ -306,37 +342,15 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Notification Preferences</CardTitle>
-                <CardDescription>
-                  Choose what you get notified about
-                </CardDescription>
+                <CardDescription>Choose what you get notified about</CardDescription>
               </CardHeader>
               <CardContent className="space-y-1">
                 {[
-                  {
-                    key: "email_invoices",
-                    label: "Invoice updates",
-                    desc: "When invoices are paid or overdue",
-                  },
-                  {
-                    key: "email_reports",
-                    label: "Report ready",
-                    desc: "When monthly reports are generated",
-                  },
-                  {
-                    key: "email_anomalies",
-                    label: "Anomaly alerts",
-                    desc: "AI-detected unusual transactions",
-                  },
-                  {
-                    key: "push_payments",
-                    label: "Payment received",
-                    desc: "Real-time payment notifications",
-                  },
-                  {
-                    key: "push_documents",
-                    label: "Document processed",
-                    desc: "When AI finishes extracting data",
-                  },
+                  { key: "email_invoices", label: "Invoice updates", desc: "When invoices are paid or overdue" },
+                  { key: "email_reports", label: "Report ready", desc: "When monthly reports are generated" },
+                  { key: "email_anomalies", label: "Anomaly alerts", desc: "AI-detected unusual transactions" },
+                  { key: "push_payments", label: "Payment received", desc: "Real-time payment notifications" },
+                  { key: "push_documents", label: "Document processed", desc: "When AI finishes extracting data" },
                 ].map((item) => (
                   <label
                     key={item.key}
@@ -344,33 +358,24 @@ export default function SettingsPage() {
                   >
                     <div>
                       <p className="text-sm font-medium">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.desc}
-                      </p>
+                      <p className="text-xs text-muted-foreground">{item.desc}</p>
                     </div>
                     <button
                       onClick={() =>
                         setNotifications({
                           ...notifications,
-                          [item.key]:
-                            !notifications[
-                              item.key as keyof typeof notifications
-                            ],
+                          [item.key]: !notifications[item.key as keyof typeof notifications],
                         })
                       }
                       className={cn(
                         "relative w-9 h-5 rounded-full transition-colors",
-                        notifications[item.key as keyof typeof notifications]
-                          ? "bg-primary"
-                          : "bg-muted"
+                        notifications[item.key as keyof typeof notifications] ? "bg-primary" : "bg-muted"
                       )}
                     >
                       <div
                         className={cn(
                           "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform",
-                          notifications[item.key as keyof typeof notifications]
-                            ? "translate-x-4"
-                            : "translate-x-0.5"
+                          notifications[item.key as keyof typeof notifications] ? "translate-x-4" : "translate-x-0.5"
                         )}
                       />
                     </button>
@@ -385,39 +390,27 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Security</CardTitle>
-                <CardDescription>
-                  Manage authentication and access controls
-                </CardDescription>
+                <CardDescription>Manage authentication and access controls</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-lg border">
                   <div>
                     <p className="text-sm font-medium">Two-factor authentication</p>
-                    <p className="text-xs text-muted-foreground">
-                      Add an extra layer of security to your account
-                    </p>
+                    <p className="text-xs text-muted-foreground">Add an extra layer of security to your account</p>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Enable
-                  </Button>
+                  <Button variant="outline" size="sm">Enable</Button>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-lg border">
                   <div>
                     <p className="text-sm font-medium">Change password</p>
-                    <p className="text-xs text-muted-foreground">
-                      Update your account password
-                    </p>
+                    <p className="text-xs text-muted-foreground">Update your account password</p>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Update
-                  </Button>
+                  <Button variant="outline" size="sm">Update</Button>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-lg border">
                   <div>
                     <p className="text-sm font-medium">Active sessions</p>
-                    <p className="text-xs text-muted-foreground">
-                      1 active session on this device
-                    </p>
+                    <p className="text-xs text-muted-foreground">1 active session on this device</p>
                   </div>
                   <Badge variant="success">Current</Badge>
                 </div>
@@ -430,30 +423,22 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Billing & Plan</CardTitle>
-                <CardDescription>
-                  Manage your subscription and payment methods
-                </CardDescription>
+                <CardDescription>Manage your subscription and payment methods</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-4 rounded-lg border border-primary/20 bg-primary/5">
                   <div>
                     <p className="text-sm font-medium">Growth Plan</p>
-                    <p className="text-xs text-muted-foreground">
-                      Up to 50 clients, AI features, bank integrations
-                    </p>
+                    <p className="text-xs text-muted-foreground">Up to 50 clients, AI features, bank integrations</p>
                   </div>
                   <Badge>Active</Badge>
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-lg border">
                   <div>
                     <p className="text-sm font-medium">Payment method</p>
-                    <p className="text-xs text-muted-foreground">
-                      Visa ending in 4242
-                    </p>
+                    <p className="text-xs text-muted-foreground">Visa ending in 4242</p>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Update
-                  </Button>
+                  <Button variant="outline" size="sm">Update</Button>
                 </div>
               </CardContent>
             </Card>
@@ -464,36 +449,25 @@ export default function SettingsPage() {
             <div className="space-y-4">
               {providersLoading && (
                 <div className="flex items-center justify-center py-8 text-muted-foreground">
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  Loading integrations…
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading integrations...
                 </div>
               )}
               {providers &&
                 CATEGORY_ORDER
-                  .filter((cat) =>
-                    providers.some((p) => p.category === cat)
-                  )
+                  .filter((cat) => providers.some((p) => p.category === cat))
                   .map((cat) => {
-                    const catProviders = providers.filter(
-                      (p) => p.category === cat
-                    )
+                    const catProviders = providers.filter((p) => p.category === cat)
                     return (
                       <Card key={cat}>
                         <CardHeader>
-                          <CardTitle>
-                            {CATEGORY_LABELS[cat] || cat}
-                          </CardTitle>
+                          <CardTitle>{CATEGORY_LABELS[cat] || cat}</CardTitle>
                           <CardDescription>
-                            {catProviders.length} provider
-                            {catProviders.length === 1 ? "" : "s"}
+                            {catProviders.length} provider{catProviders.length === 1 ? "" : "s"}
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-1">
                           {catProviders.map((p) => {
-                            const st = providerStatus[p.key] || {
-                              configured: false,
-                              last_verified_at: null,
-                            }
+                            const st = providerStatus[p.key] || { configured: false, last_verified_at: null }
                             return (
                               <button
                                 key={p.key}
@@ -506,17 +480,12 @@ export default function SettingsPage() {
                                   </div>
                                   <div>
                                     <p className="text-sm font-medium">{p.label}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                      {p.description}
-                                    </p>
+                                    <p className="text-xs text-muted-foreground">{p.description}</p>
                                   </div>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   {st.configured ? (
-                                    <Badge variant="success">
-                                      <Check className="h-3 w-3 mr-1" />
-                                      Configured
-                                    </Badge>
+                                    <Badge variant="success"><Check className="h-3 w-3 mr-1" />Configured</Badge>
                                   ) : (
                                     <Badge>Not configured</Badge>
                                   )}
@@ -532,15 +501,13 @@ export default function SettingsPage() {
               {providers && providers.length === 0 && (
                 <Card>
                   <CardContent className="py-8 text-sm text-muted-foreground text-center">
-                    No integrations registered. Check the API provider
-                    catalogue.
+                    No integrations registered. Check the API provider catalogue.
                   </CardContent>
                 </Card>
               )}
             </div>
           )}
 
-          {/* Integration edit modal */}
           <IntegrationConfigModal
             open={!!editingProvider}
             provider={editingProvider}
@@ -556,15 +523,11 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Appearance</CardTitle>
-                <CardDescription>
-                  Customize the look and feel
-                </CardDescription>
+                <CardDescription>Customize the look and feel</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium mb-3 block">
-                    Theme
-                  </label>
+                  <label className="text-sm font-medium mb-3 block">Theme</label>
                   <div className="flex gap-3">
                     {[
                       { value: "light", label: "Light" },

@@ -15,6 +15,7 @@ export interface ClientSummary {
   name: string
   country: string
   industry: string
+  default_currency: string
   is_active: boolean
 }
 

@@ -1,12 +1,20 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
 from passlib.context import CryptContext
 from app.database import get_db
 from app.models import User as UserModel
 from app.schemas import UserCreate, User as UserSchema
+from app.auth import AuthUser, get_current_user
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+class UserProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
 
 
 def hash_password(password: str) -> str:
@@ -28,6 +36,33 @@ def create_user(data: UserCreate, db: Session = Depends(get_db)):
         hashed_password=hash_password(data.password),
     )
     db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.get("/me", response_model=UserSchema)
+def get_my_profile(
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
+@router.patch("/me", response_model=UserSchema)
+def update_my_profile(
+    data: UserProfileUpdate,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(user, key, value)
     db.commit()
     db.refresh(user)
     return user

@@ -58,12 +58,24 @@ const CATEGORIES = [
   { value: "other", label: "Other" },
 ]
 
-const VAT_RATES = [
-  { value: "25", label: "25% standard" },
-  { value: "15", label: "15% food" },
-  { value: "12", label: "12% room/transport" },
-  { value: "0", label: "0% exempt" },
+const NO_VAT_RATES = [
+  { value: "25", label: "25 % MVA (standard)" },
+  { value: "15", label: "15 % MVA (mat/drikke)" },
+  { value: "12", label: "12 % MVA (hotell/transport)" },
+  { value: "6", label: "6 % MVA (superredusert)" },
+  { value: "0", label: "0 % (fritatt)" },
 ]
+
+const SE_VAT_RATES = [
+  { value: "25", label: "25 % moms (standard)" },
+  { value: "12", label: "12 % moms (mat/hotell)" },
+  { value: "6", label: "6 % moms (böcker/transport)" },
+  { value: "0", label: "0 % (momsfritt)" },
+]
+
+function getVatRates(country: string) {
+  return country === "SE" ? SE_VAT_RATES : NO_VAT_RATES
+}
 
 const categoryColors: Record<string, string> = {
   food_beverage: "bg-orange-100 text-orange-700",
@@ -138,7 +150,8 @@ export default function ExpensesPage() {
     loadExpenses()
   }, [loadExpenses])
 
-  const currency = selectedClient ? "NOK" : "NOK"
+  const currency = selectedClient?.default_currency || "NOK"
+  const vatRates = getVatRates(selectedClient?.country || "NO")
 
   const filtered = expenses.filter((e) => {
     const matchesSearch =
@@ -330,7 +343,7 @@ export default function ExpensesPage() {
               <TableHead>Category</TableHead>
               <TableHead>Date</TableHead>
               <TableHead className="text-right">Amount</TableHead>
-              <TableHead className="text-right">MVA</TableHead>
+              <TableHead className="text-right">{selectedClient?.country === "SE" ? "Moms" : "MVA"}</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -453,10 +466,10 @@ export default function ExpensesPage() {
                 required
               />
               <Select
-                label="MVA rate"
+                label={selectedClient?.country === "SE" ? "Moms" : "MVA"}
                 value={form.vat_rate}
                 onChange={(e) => setForm({ ...form, vat_rate: e.target.value })}
-                options={VAT_RATES}
+                options={vatRates}
               />
               <Input
                 label="Date"

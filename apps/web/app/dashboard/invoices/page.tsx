@@ -74,12 +74,24 @@ const statusConfig: Record<string, { label: string; variant: "secondary" | "defa
   overdue: { label: "Overdue", variant: "destructive", icon: AlertTriangle },
 }
 
-const VAT_RATES = [
-  { value: "25", label: "25% (standard)" },
-  { value: "15", label: "15% (food)" },
-  { value: "12", label: "12% (room/transport)" },
-  { value: "0", label: "0% (exempt)" },
+const NO_VAT_RATES = [
+  { value: "25", label: "25 % MVA (standard)" },
+  { value: "15", label: "15 % MVA (mat/drikke)" },
+  { value: "12", label: "12 % MVA (hotell/transport)" },
+  { value: "6", label: "6 % MVA (superredusert)" },
+  { value: "0", label: "0 % (fritatt)" },
 ]
+
+const SE_VAT_RATES = [
+  { value: "25", label: "25 % moms (standard)" },
+  { value: "12", label: "12 % moms (mat/hotell)" },
+  { value: "6", label: "6 % moms (böcker/transport)" },
+  { value: "0", label: "0 % (momsfritt)" },
+]
+
+function getVatRates(country: string) {
+  return country === "SE" ? SE_VAT_RATES : NO_VAT_RATES
+}
 
 export default function InvoicesPage() {
   const { selectedClient } = useClientContext()
@@ -120,7 +132,8 @@ export default function InvoicesPage() {
     loadInvoices()
   }, [loadInvoices])
 
-  const currency = selectedClient ? "NOK" : "NOK"
+  const currency = selectedClient?.default_currency || "NOK"
+  const vatRates = getVatRates(selectedClient?.country || "NO")
 
   const filtered = invoices.filter((inv) => {
     const matchesFilter = filter === "all" || inv.status === filter
@@ -521,7 +534,7 @@ export default function InvoicesPage() {
                       value={line.vat_rate}
                       onChange={(e) => updateLine(i, "vat_rate", parseFloat(e.target.value))}
                     >
-                      {VAT_RATES.map((r) => (
+                      {vatRates.map((r) => (
                         <option key={r.value} value={r.value}>
                           {r.label}
                         </option>

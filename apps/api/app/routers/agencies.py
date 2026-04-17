@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Agency as AgencyModel
 from app.schemas import AgencyCreate, AgencyUpdate, Agency as AgencySchema
+from app.auth import AuthUser, get_current_user
 
 router = APIRouter(prefix="/api/v1/agencies", tags=["agencies"])
 
@@ -35,6 +36,33 @@ def get_agency(agency_id: int, db: Session = Depends(get_db)):
 @router.patch("/{agency_id}", response_model=AgencySchema)
 def update_agency(agency_id: int, data: AgencyUpdate, db: Session = Depends(get_db)):
     agency = db.query(AgencyModel).filter(AgencyModel.id == agency_id).first()
+    if not agency:
+        raise HTTPException(status_code=404, detail="Agency not found")
+    for key, value in data.model_dump(exclude_unset=True).items():
+        setattr(agency, key, value)
+    db.commit()
+    db.refresh(agency)
+    return agency
+
+
+@router.get("/me", response_model=AgencySchema)
+def get_my_agency(
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    agency = db.query(AgencyModel).filter(AgencyModel.id == current_user.agency_id).first()
+    if not agency:
+        raise HTTPException(status_code=404, detail="Agency not found")
+    return agency
+
+
+@router.patch("/me", response_model=AgencySchema)
+def update_my_agency(
+    data: AgencyUpdate,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    agency = db.query(AgencyModel).filter(AgencyModel.id == current_user.agency_id).first()
     if not agency:
         raise HTTPException(status_code=404, detail="Agency not found")
     for key, value in data.model_dump(exclude_unset=True).items():

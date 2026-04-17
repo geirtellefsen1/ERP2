@@ -32,8 +32,32 @@ def create_client(
     current_user: AuthUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    from app.models import Account
+    from app.services.nordic import get_coa_template
+
     client = ClientModel(**data.model_dump(), agency_id=current_user.agency_id)
     db.add(client)
+    db.flush()
+
+    country = data.country or "NO"
+    if country in ("NO", "SE"):
+        name_key = {"NO": "name_no", "SE": "name_sv"}.get(country, "name_en")
+        template = get_coa_template(country)
+        parent_map: dict[str, int] = {}
+        for acct in template:
+            parent_id = parent_map.get(acct.parent_code) if acct.parent_code else None
+            account = Account(
+                client_id=client.id,
+                code=acct.code,
+                name=getattr(acct, name_key),
+                account_type=acct.type,
+                parent_id=parent_id,
+                is_active=True,
+            )
+            db.add(account)
+            db.flush()
+            parent_map[acct.code] = account.id
+
     db.commit()
     db.refresh(client)
     return client

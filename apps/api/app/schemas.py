@@ -20,6 +20,7 @@ class AgencyCreate(AgencyBase):
 class AgencyUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     subscription_tier: Optional[str] = None
+    countries_enabled: Optional[str] = None
 
 
 class Agency(AgencyBase):
