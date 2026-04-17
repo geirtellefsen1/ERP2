@@ -55,4 +55,10 @@ export function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+// API_BASE — in production (same-origin with nginx proxy), set
+// NEXT_PUBLIC_API_URL="" at build time. Falls back to localhost:8000 for
+// dev only when the env var is undefined. Use nullish coalescing so empty
+// string ("") passes through as same-origin.
+const envApiUrl = process.env.NEXT_PUBLIC_API_URL
+export const API_BASE =
+  typeof envApiUrl === "string" ? envApiUrl : "http://localhost:8000"

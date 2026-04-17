@@ -37,9 +37,12 @@ FROM node:20-alpine AS base
 FROM base AS builder
 WORKDIR /repo
 
-# NEXT_PUBLIC_* — must be passed at docker build time
-ARG NEXT_PUBLIC_API_URL=http://localhost:8000
-ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+# NEXT_PUBLIC_* — baked into JS bundle at build time. Default is empty
+# string = same-origin (works with any nginx/caddy proxy that forwards
+# /api/* to the FastAPI container). Override with --build-arg for custom
+# deployments, e.g. --build-arg NEXT_PUBLIC_API_URL=https://api.example.com
+ARG NEXT_PUBLIC_API_URL=""
+ARG NEXT_PUBLIC_APP_URL=""
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
 
