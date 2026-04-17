@@ -14,6 +14,10 @@ depends_on = None
 
 
 def upgrade() -> None:
+    # Widen alembic_version column — this migration's revision ID is > 32 chars.
+    # Idempotent, safe on fresh or existing installs.
+    op.execute("ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(64);")
+
     # --- Client: add address, contact, VAT fields ---
     op.add_column("clients", sa.Column("vat_number", sa.String(50)))
     op.add_column("clients", sa.Column("address", sa.String(500)))
