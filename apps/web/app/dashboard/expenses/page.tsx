@@ -1,24 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import {
   Plus,
   Search,
   Receipt,
   Upload,
   Tag,
-  Calendar,
   DollarSign,
   MoreHorizontal,
   Sparkles,
   Camera,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  X,
 } from "lucide-react"
 import { cn, formatCurrency, formatDate } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { MetricCard } from "@/components/ui/metric-card"
 import {
   Table,
@@ -38,118 +40,208 @@ import {
 } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { useToast } from "@/components/ui/toast"
+import { useClientContext } from "@/lib/client-context"
+import { apiGet, apiPost } from "@/lib/api"
 
 const CATEGORIES = [
-  { value: "office", label: "Office Supplies" },
-  { value: "travel", label: "Travel & Transport" },
-  { value: "software", label: "Software & Subscriptions" },
+  { value: "food_beverage", label: "Food & Beverage" },
   { value: "utilities", label: "Utilities" },
-  { value: "meals", label: "Meals & Entertainment" },
-  { value: "professional", label: "Professional Services" },
+  { value: "supplies", label: "Supplies & Inventory" },
+  { value: "maintenance", label: "Maintenance & Repairs" },
+  { value: "rent", label: "Rent & Lease" },
+  { value: "insurance", label: "Insurance" },
   { value: "marketing", label: "Marketing & Ads" },
+  { value: "software", label: "Software & Subscriptions" },
+  { value: "travel", label: "Travel & Transport" },
+  { value: "professional", label: "Professional Services" },
+  { value: "payroll", label: "Payroll & Staff" },
   { value: "other", label: "Other" },
 ]
 
-const DEMO_EXPENSES = [
-  {
-    id: 1,
-    description: "Adobe Creative Cloud",
-    amount: 899,
-    category: "software",
-    date: "2026-04-08",
-    status: "approved" as const,
-    vendor: "Adobe Inc.",
-  },
-  {
-    id: 2,
-    description: "Client lunch - Acme Corp",
-    amount: 450,
-    category: "meals",
-    date: "2026-04-07",
-    status: "pending" as const,
-    vendor: "The Kitchen",
-  },
-  {
-    id: 3,
-    description: "Uber to client meeting",
-    amount: 185,
-    category: "travel",
-    date: "2026-04-06",
-    status: "approved" as const,
-    vendor: "Uber",
-  },
-  {
-    id: 4,
-    description: "Office printer paper",
-    amount: 320,
-    category: "office",
-    date: "2026-04-05",
-    status: "pending" as const,
-    vendor: "Takealot",
-  },
-  {
-    id: 5,
-    description: "Google Workspace",
-    amount: 1200,
-    category: "software",
-    date: "2026-04-01",
-    status: "approved" as const,
-    vendor: "Google",
-  },
+const VAT_RATES = [
+  { value: "25", label: "25% standard" },
+  { value: "15", label: "15% food" },
+  { value: "12", label: "12% room/transport" },
+  { value: "0", label: "0% exempt" },
 ]
 
 const categoryColors: Record<string, string> = {
-  office: "bg-blue-100 text-blue-700",
-  travel: "bg-purple-100 text-purple-700",
-  software: "bg-cyan-100 text-cyan-700",
+  food_beverage: "bg-orange-100 text-orange-700",
   utilities: "bg-amber-100 text-amber-700",
-  meals: "bg-orange-100 text-orange-700",
-  professional: "bg-emerald-100 text-emerald-700",
+  supplies: "bg-blue-100 text-blue-700",
+  maintenance: "bg-slate-100 text-slate-700",
+  rent: "bg-purple-100 text-purple-700",
+  insurance: "bg-teal-100 text-teal-700",
   marketing: "bg-pink-100 text-pink-700",
+  software: "bg-cyan-100 text-cyan-700",
+  travel: "bg-indigo-100 text-indigo-700",
+  professional: "bg-emerald-100 text-emerald-700",
+  payroll: "bg-green-100 text-green-700",
   other: "bg-gray-100 text-gray-700",
 }
 
+interface ExpenseData {
+  id: number
+  client_id: number
+  vendor_name: string
+  vendor_org_number: string | null
+  description: string | null
+  date: string
+  due_date: string | null
+  amount: string
+  vat_amount: string
+  vat_rate: string
+  currency: string
+  category: string | null
+  status: string
+  payment_method: string | null
+  notes: string | null
+  created_at: string
+}
+
 export default function ExpensesPage() {
+  const { selectedClient } = useClientContext()
+  const [expenses, setExpenses] = useState<ExpenseData[]>([])
+  const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [search, setSearch] = useState("")
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [statusFilter, setStatusFilter] = useState("all")
   const [form, setForm] = useState({
+    vendor_name: "",
+    vendor_org_number: "",
     description: "",
     amount: "",
-    category: "other",
-    vendor: "",
+    vat_rate: "25",
     date: new Date().toISOString().slice(0, 10),
+    category: "other",
+    payment_method: "bank_transfer",
     notes: "",
   })
   const { toast } = useToast()
 
-  const filtered = DEMO_EXPENSES.filter((e) => {
+  const loadExpenses = useCallback(async () => {
+    setLoading(true)
+    try {
+      const clientParam = selectedClient ? `?client_id=${selectedClient.id}` : ""
+      const data = await apiGet<ExpenseData[]>(`/api/v1/expenses${clientParam}`)
+      setExpenses(data)
+    } catch (e: any) {
+      toast(e.message || "Failed to load expenses")
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedClient, toast])
+
+  useEffect(() => {
+    loadExpenses()
+  }, [loadExpenses])
+
+  const currency = selectedClient ? "NOK" : "NOK"
+
+  const filtered = expenses.filter((e) => {
     const matchesSearch =
       !search ||
-      e.description.toLowerCase().includes(search.toLowerCase()) ||
-      e.vendor.toLowerCase().includes(search.toLowerCase())
-    const matchesCategory =
-      categoryFilter === "all" || e.category === categoryFilter
-    return matchesSearch && matchesCategory
+      e.vendor_name.toLowerCase().includes(search.toLowerCase()) ||
+      e.description?.toLowerCase().includes(search.toLowerCase())
+    const matchesCategory = categoryFilter === "all" || e.category === categoryFilter
+    const matchesStatus = statusFilter === "all" || e.status === statusFilter
+    return matchesSearch && matchesCategory && matchesStatus
   })
 
-  const totalThisMonth = DEMO_EXPENSES.reduce((sum, e) => sum + e.amount, 0)
-  const pendingCount = DEMO_EXPENSES.filter(
-    (e) => e.status === "pending"
-  ).length
+  const totalThisMonth = expenses.reduce((sum, e) => sum + parseFloat(e.amount), 0)
+  const pendingCount = expenses.filter((e) => e.status === "pending").length
+  const topCategory = (() => {
+    const counts: Record<string, number> = {}
+    expenses.forEach((e) => {
+      const cat = e.category || "other"
+      counts[cat] = (counts[cat] || 0) + parseFloat(e.amount)
+    })
+    const sorted = Object.entries(counts).sort(([, a], [, b]) => b - a)
+    return sorted[0] ? CATEGORIES.find((c) => c.value === sorted[0][0])?.label || "Other" : "—"
+  })()
 
-  function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    toast("Expense recorded successfully")
-    setShowCreate(false)
+  function resetForm() {
     setForm({
+      vendor_name: "",
+      vendor_org_number: "",
       description: "",
       amount: "",
-      category: "other",
-      vendor: "",
+      vat_rate: "25",
       date: new Date().toISOString().slice(0, 10),
+      category: "other",
+      payment_method: "bank_transfer",
       notes: "",
     })
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!selectedClient) {
+      toast("Select a client from the top bar first")
+      return
+    }
+    const amount = parseFloat(form.amount)
+    if (!amount || amount <= 0) {
+      toast("Enter a valid amount")
+      return
+    }
+    setSubmitting(true)
+    const vatRate = parseFloat(form.vat_rate)
+    const vatAmount = Math.round((amount * vatRate) / (100 + vatRate) * 100) / 100
+    try {
+      await apiPost("/api/v1/expenses", {
+        client_id: selectedClient.id,
+        vendor_name: form.vendor_name,
+        vendor_org_number: form.vendor_org_number || null,
+        description: form.description || null,
+        date: new Date(form.date).toISOString(),
+        amount,
+        vat_amount: vatAmount,
+        vat_rate: vatRate,
+        currency,
+        category: form.category,
+        payment_method: form.payment_method || null,
+        notes: form.notes || null,
+      })
+      toast("Expense recorded")
+      setShowCreate(false)
+      resetForm()
+      loadExpenses()
+    } catch (e: any) {
+      toast(e.message || "Failed to record expense")
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function approveExpense(id: number) {
+    try {
+      await apiPost(`/api/v1/expenses/${id}/approve`, {})
+      toast("Expense approved")
+      loadExpenses()
+    } catch (e: any) {
+      toast(e.message || "Failed to approve")
+    }
+  }
+
+  if (!selectedClient) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-xl font-semibold">Expenses</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Select a client from the top bar to view and record expenses.
+          </p>
+        </div>
+        <EmptyState
+          icon={<Receipt />}
+          title="No client selected"
+          description="Use the client picker in the top bar to choose which client you're working on."
+        />
+      </div>
+    )
   }
 
   return (
@@ -159,44 +251,32 @@ export default function ExpensesPage() {
         <div>
           <h1 className="text-xl font-semibold">Expenses</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Track and categorize business expenses
+            {selectedClient.name} — track supplier invoices and costs
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            <Upload className="h-4 w-4" />
-            Import CSV
-          </Button>
-          <Button size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4" />
-            Add Expense
-          </Button>
-        </div>
+        <Button size="sm" onClick={() => setShowCreate(true)}>
+          <Plus className="h-4 w-4" />
+          Add Expense
+        </Button>
       </div>
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <MetricCard
-          title="This Month"
-          value={formatCurrency(totalThisMonth)}
-          change={-5}
-          changeLabel="vs last month"
+          title="Total Expenses"
+          value={formatCurrency(totalThisMonth, currency)}
           icon={<DollarSign />}
         />
         <MetricCard
           title="Pending Approval"
           value={pendingCount.toString()}
-          icon={<Receipt />}
+          icon={<Clock />}
         />
-        <MetricCard
-          title="Top Category"
-          value="Software"
-          icon={<Tag />}
-        />
+        <MetricCard title="Top Category" value={topCategory} icon={<Tag />} />
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 max-w-xs">
           <Input
             placeholder="Search expenses..."
@@ -208,30 +288,49 @@ export default function ExpensesPage() {
         <Select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          options={[
-            { value: "all", label: "All Categories" },
-            ...CATEGORIES,
-          ]}
+          options={[{ value: "all", label: "All Categories" }, ...CATEGORIES]}
         />
+        <div className="flex gap-1 bg-muted p-1 rounded-lg">
+          {["all", "pending", "approved", "paid"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "px-3 py-1 text-xs font-medium rounded-md transition-all capitalize",
+                statusFilter === s
+                  ? "bg-background shadow-xs text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Table */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-12 text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" />
+          Loading expenses...
+        </div>
+      ) : filtered.length === 0 ? (
         <EmptyState
           icon={<Receipt />}
           title="No expenses"
-          description="Start recording expenses to track your business spending."
+          description="Start recording expenses to track spending."
           action={{ label: "Add Expense", onClick: () => setShowCreate(true) }}
         />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Description</TableHead>
               <TableHead>Vendor</TableHead>
+              <TableHead>Description</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Date</TableHead>
               <TableHead className="text-right">Amount</TableHead>
+              <TableHead className="text-right">MVA</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -240,20 +339,31 @@ export default function ExpensesPage() {
             {filtered.map((exp) => (
               <TableRow key={exp.id}>
                 <TableCell>
-                  <span className="font-medium">{exp.description}</span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-muted-foreground">{exp.vendor}</span>
-                </TableCell>
-                <TableCell>
-                  <span
-                    className={cn(
-                      "inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium",
-                      categoryColors[exp.category]
+                  <div className="min-w-0">
+                    <p className="font-medium text-sm truncate">{exp.vendor_name}</p>
+                    {exp.vendor_org_number && (
+                      <p className="text-2xs text-muted-foreground">
+                        {exp.vendor_org_number}
+                      </p>
                     )}
-                  >
-                    {CATEGORIES.find((c) => c.value === exp.category)?.label}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
+                    {exp.description || "—"}
                   </span>
+                </TableCell>
+                <TableCell>
+                  {exp.category && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium",
+                        categoryColors[exp.category] || categoryColors.other
+                      )}
+                    >
+                      {CATEGORIES.find((c) => c.value === exp.category)?.label || exp.category}
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <span className="text-xs text-muted-foreground">
@@ -262,22 +372,38 @@ export default function ExpensesPage() {
                 </TableCell>
                 <TableCell className="text-right">
                   <span className="font-medium font-mono text-sm">
-                    {formatCurrency(exp.amount)}
+                    {formatCurrency(parseFloat(exp.amount), exp.currency)}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="text-xs text-muted-foreground">
+                    {formatCurrency(parseFloat(exp.vat_amount), exp.currency)}
                   </span>
                 </TableCell>
                 <TableCell>
                   <Badge
                     variant={
-                      exp.status === "approved" ? "success" : "warning"
+                      exp.status === "approved" || exp.status === "paid"
+                        ? "success"
+                        : exp.status === "rejected"
+                          ? "destructive"
+                          : "warning"
                     }
                   >
-                    {exp.status === "approved" ? "Approved" : "Pending"}
+                    {exp.status === "approved" ? "Approved" : exp.status === "paid" ? "Paid" : exp.status === "pending" ? "Pending" : exp.status}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Button variant="ghost" size="icon-sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
+                  {exp.status === "pending" && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      title="Approve"
+                      onClick={() => approveExpense(exp.id)}
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}
@@ -290,38 +416,47 @@ export default function ExpensesPage() {
         <ModalHeader onClose={() => setShowCreate(false)}>
           <ModalTitle>Record Expense</ModalTitle>
           <ModalDescription>
-            Add a business expense quickly
+            Add a supplier invoice or cost for {selectedClient?.name}
           </ModalDescription>
         </ModalHeader>
         <form onSubmit={handleCreate}>
           <ModalContent className="space-y-4">
-            {/* Receipt upload zone */}
-            <div className="flex items-center justify-center w-full h-24 rounded-lg border-2 border-dashed border-input hover:border-primary/50 hover:bg-accent/50 transition-colors cursor-pointer group">
-              <div className="text-center">
-                <Camera className="h-5 w-5 mx-auto text-muted-foreground group-hover:text-primary transition-colors" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Upload receipt (optional)
-                </p>
-              </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Vendor name"
+                value={form.vendor_name}
+                onChange={(e) => setForm({ ...form, vendor_name: e.target.value })}
+                placeholder="Tine SA, Asko, Hafslund..."
+                required
+              />
+              <Input
+                label="Org number"
+                value={form.vendor_org_number}
+                onChange={(e) => setForm({ ...form, vendor_org_number: e.target.value })}
+                placeholder="123 456 789 MVA"
+              />
             </div>
-
             <Input
               label="Description"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="What was this expense for?"
-              required
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <Input
-                label="Amount (ZAR)"
+                label={`Amount (${currency})`}
                 type="number"
                 step="0.01"
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: e.target.value })}
                 placeholder="0.00"
-                icon={<DollarSign />}
                 required
+              />
+              <Select
+                label="MVA rate"
+                value={form.vat_rate}
+                onChange={(e) => setForm({ ...form, vat_rate: e.target.value })}
+                options={VAT_RATES}
               />
               <Input
                 label="Date"
@@ -337,21 +472,29 @@ export default function ExpensesPage() {
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
                 options={CATEGORIES}
               />
-              <Input
-                label="Vendor"
-                value={form.vendor}
-                onChange={(e) => setForm({ ...form, vendor: e.target.value })}
-                placeholder="Company name"
+              <Select
+                label="Payment method"
+                value={form.payment_method}
+                onChange={(e) => setForm({ ...form, payment_method: e.target.value })}
+                options={[
+                  { value: "bank_transfer", label: "Bank transfer" },
+                  { value: "credit_card", label: "Credit card" },
+                  { value: "cash", label: "Cash" },
+                  { value: "ehf", label: "EHF" },
+                ]}
               />
             </div>
 
-            {/* AI suggestion hint */}
+            {/* AI hint */}
             <div className="flex items-start gap-2 rounded-lg bg-primary/5 border border-primary/10 px-3 py-2.5">
               <Sparkles className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">AI tip:</span>{" "}
-                Upload a receipt and our AI will auto-fill the description,
-                amount, vendor, and suggest a GL category.
+                <span className="font-medium text-foreground">Tip:</span>{" "}
+                Drop receipts in the{" "}
+                <a href="/dashboard/inbox" className="text-primary hover:underline">
+                  Inbox
+                </a>{" "}
+                and AI will auto-fill vendor, amount, VAT, and category.
               </p>
             </div>
           </ModalContent>
@@ -359,11 +502,18 @@ export default function ExpensesPage() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setShowCreate(false)}
+              onClick={() => { setShowCreate(false); resetForm() }}
             >
               Cancel
             </Button>
-            <Button type="submit">Save Expense</Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Receipt className="h-4 w-4" />
+              )}
+              Save Expense
+            </Button>
           </ModalFooter>
         </form>
       </Modal>
