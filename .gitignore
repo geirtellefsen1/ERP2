@@ -46,3 +46,4 @@ crash.*.log
 coverage/
 .pytest_cache/
 .claude/
+tsconfig.tsbuildinfo
