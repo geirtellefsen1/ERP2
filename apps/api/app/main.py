@@ -23,6 +23,8 @@ from app.routers import (
     mfa,
     hospitality,
     inbox,
+    invoices,
+    expenses,
 )
 
 settings = get_settings()
@@ -71,6 +73,8 @@ app.include_router(dsr.router)
 app.include_router(mfa.router)
 app.include_router(hospitality.router)
 app.include_router(inbox.router)
+app.include_router(invoices.router)
+app.include_router(expenses.router)
 
 
 class HealthResponse(BaseModel):
