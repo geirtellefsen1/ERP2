@@ -72,8 +72,16 @@ def get_client(client_id: int, db: Session = Depends(get_db)):
 
 
 @router.patch("/{client_id}", response_model=ClientSchema)
-def update_client(client_id: int, data: ClientUpdate, db: Session = Depends(get_db)):
-    client = db.query(ClientModel).filter(ClientModel.id == client_id).first()
+def update_client(
+    client_id: int,
+    data: ClientUpdate,
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    client = db.query(ClientModel).filter(
+        ClientModel.id == client_id,
+        ClientModel.agency_id == current_user.agency_id,
+    ).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     for key, value in data.model_dump(exclude_unset=True).items():

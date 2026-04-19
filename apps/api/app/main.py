@@ -26,6 +26,7 @@ from app.routers import (
     invoices,
     expenses,
     nordic,
+    ehf,
 )
 
 settings = get_settings()
@@ -77,6 +78,7 @@ app.include_router(inbox.router)
 app.include_router(invoices.router)
 app.include_router(expenses.router)
 app.include_router(nordic.router)
+app.include_router(ehf.router)
 
 
 class HealthResponse(BaseModel):

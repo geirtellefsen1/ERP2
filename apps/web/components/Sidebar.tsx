@@ -18,6 +18,7 @@ import {
   CreditCard,
   Hotel,
   Inbox,
+  Upload,
 } from "lucide-react"
 import { cn, getInitials } from "@/lib/utils"
 import { useState, useEffect } from "react"
@@ -53,6 +54,7 @@ export default function Sidebar() {
       items: [
         { href: "/dashboard/invoices", label: tNav("invoices"), icon: FileText },
         { href: "/dashboard/expenses", label: tNav("expenses"), icon: Receipt },
+        { href: "/dashboard/import", label: "EHF Import", icon: Upload },
         { href: "/dashboard/banking", label: tNav("banking"), icon: Landmark },
       ],
     },
