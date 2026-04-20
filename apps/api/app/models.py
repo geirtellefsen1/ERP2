@@ -1,6 +1,7 @@
 # BPO Nexus — SQLAlchemy Models
 # Sprint 2 will add Alembic migrations; these are the target schema
 
+from decimal import Decimal
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Boolean, Text, Numeric
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
