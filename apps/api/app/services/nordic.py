@@ -144,69 +144,129 @@ class AccountTemplate:
     vat_code: str      # default VAT code for this account, or ""
     parent_code: str   # parent account code for grouping, or ""
 
-# NS 4102 (Norway) — standard chart of accounts for SMB
-# Focused on hospitality-relevant accounts
+# NS 4102 (Norway) — Hotel kontoplan
+# Follows standard Norwegian accounting practice with hospitality-specific
+# department splits (Tripletex/Regnskapsprofeten hotel template).
+# VAT rates:
+#   12% (lav) — overnatting (rom), persontransport
+#   15% (middels) — mat og drikke servert i restaurant
+#   25% (høy) — alkohol, minibar, spa, konferanse, suvenirer
 NS4102_ACCOUNTS: list[AccountTemplate] = [
-    # 1xxx — Assets (Eiendeler)
-    AccountTemplate("1000", "Eiendeler",              "Assets",                  "Tillgångar",              "asset",     "",        ""),
-    AccountTemplate("1200", "Maskiner og inventar",   "Machinery & equipment",   "Maskiner och inventarier","asset",     "",        "1000"),
-    AccountTemplate("1500", "Kundefordringer",        "Accounts receivable",     "Kundfordringar",         "asset",     "",        "1000"),
-    AccountTemplate("1900", "Bankinnskudd",           "Bank deposits",           "Banktillgodohavanden",   "asset",     "",        "1000"),
-    AccountTemplate("1910", "Driftskonto",            "Operating account",       "Driftskonto",            "asset",     "",        "1900"),
-    AccountTemplate("1920", "Skattetrekkskonto",      "Tax withholding account", "Skattekonto",            "asset",     "",        "1900"),
+    # 1xxx — Eiendeler
+    AccountTemplate("1000", "Eiendeler",                 "Assets",                    "Tillgångar",                "asset",     "",        ""),
+    AccountTemplate("1115", "Tomter",                    "Land",                      "Tomter",                    "asset",     "",        "1000"),
+    AccountTemplate("1117", "Bygg — hotell",             "Buildings — hotel",         "Byggnad — hotell",          "asset",     "",        "1000"),
+    AccountTemplate("1200", "Maskiner og anlegg",        "Machinery & installations", "Maskiner och anläggningar", "asset",     "",        "1000"),
+    AccountTemplate("1250", "Inventar",                  "Furniture & fittings",      "Inventarier",               "asset",     "",        "1000"),
+    AccountTemplate("1280", "Kjøretøy",                  "Vehicles",                  "Fordon",                    "asset",     "",        "1000"),
+    AccountTemplate("1460", "Varelager",                 "Inventory",                 "Varulager",                 "asset",     "",        "1000"),
+    AccountTemplate("1500", "Kundefordringer",           "Accounts receivable",       "Kundfordringar",            "asset",     "",        "1000"),
+    AccountTemplate("1570", "Andre fordringer",          "Other receivables",         "Övriga fordringar",         "asset",     "",        "1000"),
+    AccountTemplate("1614", "Inngående MVA lav sats",    "Input VAT low rate (12%)",  "Ingående moms låg sats",    "asset",     "",        "1000"),
+    AccountTemplate("1900", "Kasse",                     "Cash on hand",              "Kassa",                     "asset",     "",        "1000"),
+    AccountTemplate("1910", "Driftskonto",               "Operating account",         "Företagskonto",             "asset",     "",        "1000"),
+    AccountTemplate("1920", "Skattetrekkskonto",         "Tax withholding account",   "Skattekonto",               "asset",     "",        "1000"),
+    AccountTemplate("1950", "Høyrentekonto",             "Savings account",           "Sparkonto",                 "asset",     "",        "1000"),
 
-    # 2xxx — Liabilities (Gjeld) & Equity (Egenkapital)
-    AccountTemplate("2000", "Egenkapital og gjeld",   "Equity & liabilities",    "Eget kapital och skulder","liability", "",        ""),
-    AccountTemplate("2400", "Leverandørgjeld",        "Accounts payable",        "Leverantörsskulder",     "liability", "",        "2000"),
-    AccountTemplate("2600", "Skattetrekk",            "Tax withholdings",        "Skatteavdrag",           "liability", "",        "2000"),
-    AccountTemplate("2700", "Skyldig MVA",            "VAT payable",             "Moms att betala",        "liability", "",        "2000"),
-    AccountTemplate("2710", "Inngående MVA",          "Input VAT",               "Ingående moms",         "liability", "",        "2700"),
-    AccountTemplate("2720", "Utgående MVA",           "Output VAT",              "Utgående moms",         "liability", "",        "2700"),
-    AccountTemplate("2740", "Oppgjørskonto MVA",      "VAT settlement",          "Momsredovisning",       "liability", "",        "2700"),
+    # 2xxx — Egenkapital
+    AccountTemplate("2000", "Egenkapital",               "Equity",                    "Eget kapital",              "equity",    "",        ""),
+    AccountTemplate("2010", "Aksjekapital",              "Share capital",             "Aktiekapital",              "equity",    "",        "2000"),
+    AccountTemplate("2050", "Annen egenkapital",         "Retained earnings",         "Annat eget kapital",        "equity",    "",        "2000"),
+    AccountTemplate("2080", "Udekket tap",               "Uncovered loss",            "Outdelade förluster",       "equity",    "",        "2000"),
 
-    # 3xxx — Revenue (Inntekter)
-    AccountTemplate("3000", "Salgsinntekter",         "Sales revenue",           "Försäljningsintäkter",   "revenue",   "NO_HIGH", ""),
-    AccountTemplate("3010", "Romsinntekter",          "Room revenue",            "Rumsintäkter",           "revenue",   "NO_HIGH", "3000"),
-    AccountTemplate("3020", "Mat- og drikkeinntekter","F&B revenue",             "Mat- och dryckesintäkter","revenue",  "NO_FOOD", "3000"),
-    AccountTemplate("3030", "Konferanseinntekter",    "Conference revenue",      "Konferensintäkter",      "revenue",   "NO_HIGH", "3000"),
-    AccountTemplate("3040", "Andre inntekter",        "Other revenue",           "Övriga intäkter",        "revenue",   "NO_HIGH", "3000"),
-    AccountTemplate("3400", "Offentlig tilskudd",     "Public grants",           "Offentliga bidrag",      "revenue",   "NO_ZERO", "3000"),
+    # 2xxx — Gjeld (Liabilities)
+    AccountTemplate("2200", "Langsiktig gjeld",          "Long-term liabilities",     "Långfristiga skulder",      "liability", "",        ""),
+    AccountTemplate("2220", "Pantelån — hotell",         "Mortgage — hotel",          "Pantlån",                   "liability", "",        "2200"),
+    AccountTemplate("2240", "Billån",                    "Vehicle loan",              "Billån",                    "liability", "",        "2200"),
+    AccountTemplate("2380", "Kassakreditt",              "Overdraft",                 "Checkkredit",               "liability", "",        "2200"),
+    AccountTemplate("2400", "Leverandørgjeld",           "Accounts payable",          "Leverantörsskulder",        "liability", "",        ""),
+    AccountTemplate("2600", "Skattetrekk",               "Tax withholdings",          "Skatteavdrag",              "liability", "",        ""),
+    AccountTemplate("2700", "Skyldig MVA",               "VAT payable",               "Moms att betala",           "liability", "",        ""),
+    AccountTemplate("2710", "Inngående MVA",             "Input VAT (standard)",      "Ingående moms",             "liability", "",        "2700"),
+    AccountTemplate("2720", "Utgående MVA 25 %",         "Output VAT 25%",            "Utgående moms 25 %",        "liability", "NO_HIGH", "2700"),
+    AccountTemplate("2725", "Utgående MVA 15 %",         "Output VAT 15%",            "Utgående moms 15 %",        "liability", "NO_FOOD", "2700"),
+    AccountTemplate("2728", "Utgående MVA 12 %",         "Output VAT 12%",            "Utgående moms 12 %",        "liability", "NO_LOW",  "2700"),
+    AccountTemplate("2740", "Oppgjørskonto MVA",         "VAT settlement",            "Momsredovisning",           "liability", "",        "2700"),
+    AccountTemplate("2770", "Skyldig arbeidsgiveravgift","Employer NI payable",       "Arbetsgivaravgifter att betala","liability","",      ""),
+    AccountTemplate("2780", "Skyldig feriepenger",       "Vacation pay liability",    "Semesterlöneskuld",         "liability", "",        ""),
 
-    # 4xxx — Cost of goods (Varekostnad)
-    AccountTemplate("4000", "Varekostnad",            "Cost of goods",           "Varukostnad",            "expense",   "NO_HIGH", ""),
-    AccountTemplate("4010", "Varekostnad mat",        "Food cost",               "Varukostnad mat",        "expense",   "NO_FOOD", "4000"),
-    AccountTemplate("4020", "Varekostnad drikke",     "Beverage cost",           "Varukostnad dryck",      "expense",   "NO_FOOD", "4000"),
-    AccountTemplate("4300", "Innkjøp av varer",       "Purchases",               "Inköp av varor",         "expense",   "NO_HIGH", "4000"),
+    # 3xxx — Salgsinntekter, delt per avdeling
+    AccountTemplate("3000", "Salgsinntekter",            "Sales revenue",             "Försäljningsintäkter",      "revenue",   "",        ""),
+    AccountTemplate("3010", "Salgsinntekt rom",          "Room revenue (12%)",        "Rumsintäkter",              "revenue",   "NO_LOW",  "3000"),
+    AccountTemplate("3050", "Salgsinntekt pakker",       "Package revenue (12%)",     "Paketintäkter",             "revenue",   "NO_LOW",  "3000"),
+    AccountTemplate("3100", "Salgsinntekt mat",          "Food revenue (15%)",        "Matintäkter",               "revenue",   "NO_FOOD", "3000"),
+    AccountTemplate("3150", "Salgsinntekt frokost",      "Breakfast revenue (15%)",   "Frukostintäkter",           "revenue",   "NO_FOOD", "3000"),
+    AccountTemplate("3200", "Salgsinntekt drikke/bar",   "Beverage & bar revenue (25%)","Dryck- och barintäkter",  "revenue",   "NO_HIGH", "3000"),
+    AccountTemplate("3250", "Salgsinntekt alkohol",      "Alcohol revenue (25%)",     "Alkoholintäkter",           "revenue",   "NO_HIGH", "3000"),
+    AccountTemplate("3300", "Salgsinntekt minibar",      "Minibar revenue (25%)",     "Minibarintäkter",           "revenue",   "NO_HIGH", "3000"),
+    AccountTemplate("3350", "Salgsinntekt vaskeri",      "Laundry revenue (25%)",     "Tvättintäkter",             "revenue",   "NO_HIGH", "3000"),
+    AccountTemplate("3400", "Salgsinntekt konferanse",   "Conference revenue (25%)",  "Konferensintäkter",         "revenue",   "NO_HIGH", "3000"),
+    AccountTemplate("3500", "Salgsinntekt SPA/velvære",  "SPA & wellness (25%)",      "SPA och välmående",         "revenue",   "NO_HIGH", "3000"),
+    AccountTemplate("3600", "Salgsinntekt parkering",    "Parking revenue (25%)",     "Parkering",                 "revenue",   "NO_HIGH", "3000"),
+    AccountTemplate("3900", "Annen driftsinntekt",       "Other operating revenue",   "Övriga rörelseintäkter",    "revenue",   "NO_HIGH", "3000"),
 
-    # 5xxx — Payroll (Lønnskostnad)
-    AccountTemplate("5000", "Lønnskostnader",         "Payroll costs",           "Lönekostnader",          "expense",   "",        ""),
-    AccountTemplate("5010", "Lønn",                   "Salaries",                "Löner",                  "expense",   "",        "5000"),
-    AccountTemplate("5090", "Feriepenger",            "Vacation pay",            "Semesterlön",            "expense",   "",        "5000"),
-    AccountTemplate("5400", "Arbeidsgiveravgift",     "Employer NI contributions","Arbetsgivaravgifter",   "expense",   "",        "5000"),
+    # 4xxx — Varekostnad
+    AccountTemplate("4000", "Varekjøp mat",              "Food purchases (15%)",      "Varuinköp mat",             "expense",   "NO_FOOD", ""),
+    AccountTemplate("4010", "Varekjøp frokost",          "Breakfast purchases",       "Varuinköp frukost",         "expense",   "NO_FOOD", "4000"),
+    AccountTemplate("4020", "Varekjøp drikke",           "Non-alcoholic beverages",   "Varuinköp dryck",           "expense",   "NO_FOOD", "4000"),
+    AccountTemplate("4030", "Varekjøp alkohol",          "Alcohol purchases (25%)",   "Varuinköp alkohol",         "expense",   "NO_HIGH", "4000"),
+    AccountTemplate("4080", "Gave og representasjon",    "Gifts & entertainment",     "Gåvor och representation",  "expense",   "NO_HIGH", "4000"),
+    AccountTemplate("4100", "Varekjøp minibar",          "Minibar purchases (25%)",   "Varuinköp minibar",         "expense",   "NO_HIGH", "4000"),
+    AccountTemplate("4300", "Annet varekjøp",            "Other purchases",           "Annat varuinköp",           "expense",   "NO_HIGH", "4000"),
 
-    # 6xxx — Operating expenses (Driftskostnader)
-    AccountTemplate("6000", "Driftskostnader",        "Operating expenses",      "Driftskostnader",        "expense",   "NO_HIGH", ""),
-    AccountTemplate("6100", "Frakt og transport",     "Freight & transport",     "Frakt och transport",    "expense",   "NO_HIGH", "6000"),
-    AccountTemplate("6200", "Leie lokaler",           "Rent",                    "Hyra lokaler",           "expense",   "NO_ZERO", "6000"),
-    AccountTemplate("6300", "Energikostnader",        "Energy costs",            "Energikostnader",        "expense",   "NO_HIGH", "6000"),
-    AccountTemplate("6400", "Vedlikehold",            "Maintenance",             "Underhåll",              "expense",   "NO_HIGH", "6000"),
-    AccountTemplate("6500", "Verktøy og inventar",    "Tools & equipment",       "Verktyg och inventarier","expense",   "NO_HIGH", "6000"),
-    AccountTemplate("6700", "Regnskap og revisjon",   "Accounting & audit",      "Redovisning och revision","expense",  "NO_HIGH", "6000"),
-    AccountTemplate("6800", "Kontorkostnader",        "Office costs",            "Kontorskostnader",       "expense",   "NO_HIGH", "6000"),
-    AccountTemplate("6900", "Telefon og internett",   "Phone & internet",        "Telefon och internet",   "expense",   "NO_HIGH", "6000"),
+    # 5xxx — Lønn
+    AccountTemplate("5000", "Lønnskostnader",            "Payroll costs",             "Lönekostnader",             "expense",   "",        ""),
+    AccountTemplate("5010", "Fast lønn",                 "Fixed salaries",            "Fasta löner",               "expense",   "",        "5000"),
+    AccountTemplate("5020", "Timelønn",                  "Hourly wages",              "Timlöner",                  "expense",   "",        "5000"),
+    AccountTemplate("5090", "Feriepenger",               "Vacation pay",              "Semesterlön",               "expense",   "",        "5000"),
+    AccountTemplate("5400", "Arbeidsgiveravgift",        "Employer NI contributions", "Arbetsgivaravgifter",       "expense",   "",        "5000"),
+    AccountTemplate("5420", "AGA av feriepenger",        "Employer NI on vacation pay","AGA på semesterlön",       "expense",   "",        "5000"),
+    AccountTemplate("5900", "Yrkesskadeforsikring",      "Occupational injury insurance","Arbetsskadeförsäkring",  "expense",   "NO_ZERO", "5000"),
 
-    # 7xxx — Other operating (Andre driftskostnader)
-    AccountTemplate("7000", "Andre driftskostnader",  "Other operating costs",   "Övriga driftskostnader", "expense",   "NO_HIGH", ""),
-    AccountTemplate("7100", "Bilkostnader",           "Vehicle costs",           "Bilkostnader",           "expense",   "NO_HIGH", "7000"),
-    AccountTemplate("7300", "Markedsføring",          "Marketing",               "Marknadsföring",         "expense",   "NO_HIGH", "7000"),
-    AccountTemplate("7400", "Forsikring",             "Insurance",               "Försäkring",             "expense",   "NO_ZERO", "7000"),
-    AccountTemplate("7700", "Bankgebyrer",            "Bank fees",               "Bankavgifter",           "expense",   "NO_ZERO", "7000"),
+    # 6xxx — Avskrivning og drift
+    AccountTemplate("6000", "Avskrivning bygg",          "Depreciation buildings",    "Avskrivning byggnader",     "expense",   "",        ""),
+    AccountTemplate("6050", "Avskrivning inventar",      "Depreciation furniture",    "Avskrivning inventarier",   "expense",   "",        ""),
+    AccountTemplate("6100", "Frakt og transport",        "Freight & transport",       "Frakt och transport",       "expense",   "NO_HIGH", ""),
+    AccountTemplate("6300", "Leie lokaler",              "Rent — premises",           "Hyra lokaler",              "expense",   "NO_ZERO", ""),
+    AccountTemplate("6310", "Leasing",                   "Leasing",                   "Leasing",                   "expense",   "NO_HIGH", "6300"),
+    AccountTemplate("6340", "Lys, varme",                "Electricity & heating",     "El och värme",              "expense",   "NO_HIGH", ""),
+    AccountTemplate("6360", "Kommunale avgifter",        "Municipal fees",            "Kommunala avgifter",        "expense",   "NO_ZERO", ""),
+    AccountTemplate("6400", "Reise og transport (drift)","Travel & transport (ops)",  "Rese- och transport drift", "expense",   "NO_HIGH", ""),
+    AccountTemplate("6500", "Verktøy og små anskaffelser","Tools & small equipment",  "Verktyg och småanskaff.",   "expense",   "NO_HIGH", ""),
+    AccountTemplate("6540", "Inventarkjøp",              "Furniture purchases",       "Inventarieinköp",           "expense",   "NO_HIGH", ""),
+    AccountTemplate("6550", "Driftsmateriale",           "Operating supplies",        "Driftmaterial",             "expense",   "NO_HIGH", ""),
+    AccountTemplate("6555", "Rengjøringsmidler og linnet","Cleaning & linen",         "Rengöring och linne",       "expense",   "NO_HIGH", "6550"),
+    AccountTemplate("6600", "Vedlikehold bygg",          "Building maintenance",      "Underhåll byggnader",       "expense",   "NO_HIGH", ""),
+    AccountTemplate("6700", "Fremmede tjenester",        "Outsourced services",       "Främmande tjänster",        "expense",   "NO_HIGH", ""),
+    AccountTemplate("6705", "Vaskeritjenester",          "Laundry services",          "Tvätteritjänster",          "expense",   "NO_HIGH", "6700"),
+    AccountTemplate("6710", "Sikkerhet og vakt",         "Security",                  "Säkerhetstjänster",         "expense",   "NO_HIGH", "6700"),
+    AccountTemplate("6720", "Regnskap og revisjon",      "Accounting & audit",        "Redovisning och revision",  "expense",   "NO_HIGH", "6700"),
+    AccountTemplate("6740", "Juridisk bistand",          "Legal services",            "Juridisk hjälp",            "expense",   "NO_HIGH", "6700"),
+    AccountTemplate("6800", "Kontorkostnader",           "Office supplies",           "Kontorskostnader",          "expense",   "NO_HIGH", ""),
+    AccountTemplate("6860", "Møter og kurs",             "Meetings & training",       "Möten och kurs",            "expense",   "NO_HIGH", ""),
+    AccountTemplate("6900", "Telefon",                   "Phone",                     "Telefon",                   "expense",   "NO_HIGH", ""),
+    AccountTemplate("6950", "Internett og IT",           "Internet & IT",             "Internet och IT",           "expense",   "NO_HIGH", ""),
 
-    # 8xxx — Financial items
-    AccountTemplate("8000", "Finansposter",           "Financial items",         "Finansiella poster",     "expense",   "",        ""),
-    AccountTemplate("8040", "Renteinntekt",           "Interest income",         "Ränteintäkter",          "revenue",   "",        "8000"),
-    AccountTemplate("8140", "Rentekostnad",           "Interest expense",        "Räntekostnader",         "expense",   "",        "8000"),
-    AccountTemplate("8170", "Valutagevinst/-tap",     "Currency gain/loss",      "Valutavinst/-förlust",   "expense",   "",        "8000"),
+    # 7xxx — Andre driftskostnader
+    AccountTemplate("7000", "Drivstoff og bilhold",      "Fuel & vehicle running",    "Bränsle och bil",           "expense",   "NO_HIGH", ""),
+    AccountTemplate("7140", "Reisekostnader",            "Travel expenses",           "Resekostnader",             "expense",   "NO_LOW",  ""),
+    AccountTemplate("7160", "Diettkostnader",            "Per diem",                  "Traktamente",               "expense",   "NO_ZERO", ""),
+    AccountTemplate("7300", "Salgs- og reklamekostnader","Sales & advertising",       "Sälj- och reklamkostnad",   "expense",   "NO_HIGH", ""),
+    AccountTemplate("7320", "Booking.com provisjon",     "OTA commission",            "OTA-provision",             "expense",   "NO_HIGH", "7300"),
+    AccountTemplate("7350", "Trykksaker og brosjyrer",   "Print & brochures",         "Tryck och broschyrer",      "expense",   "NO_HIGH", "7300"),
+    AccountTemplate("7400", "Forsikring",                "Insurance",                 "Försäkring",                "expense",   "NO_ZERO", ""),
+    AccountTemplate("7600", "Lisens og rettigheter",     "Licenses & rights",         "Licenser och rättigheter",  "expense",   "NO_HIGH", ""),
+    AccountTemplate("7700", "Bankgebyrer og kortprovisjon","Bank fees & card provisjons","Bankavgifter",          "expense",   "NO_ZERO", ""),
+    AccountTemplate("7710", "Tap på fordringer",         "Bad debt",                  "Kundförluster",             "expense",   "NO_ZERO", ""),
+    AccountTemplate("7790", "Annen kostnad",             "Other expense",             "Övrig kostnad",             "expense",   "NO_HIGH", ""),
+
+    # 8xxx — Finansposter
+    AccountTemplate("8000", "Finansposter",              "Financial items",           "Finansiella poster",        "expense",   "",        ""),
+    AccountTemplate("8040", "Renteinntekt",              "Interest income",           "Ränteintäkter",             "revenue",   "",        "8000"),
+    AccountTemplate("8140", "Rentekostnad pantelån",     "Interest expense mortgage", "Räntekostnad pantlån",      "expense",   "",        "8000"),
+    AccountTemplate("8150", "Annen rentekostnad",        "Other interest expense",    "Annan räntekostnad",        "expense",   "",        "8000"),
+    AccountTemplate("8170", "Valutagevinst/-tap",        "Currency gain/loss",        "Valutavinst/-förlust",      "expense",   "",        "8000"),
+    AccountTemplate("8300", "Skattekostnad",             "Income tax expense",        "Skattekostnad",             "expense",   "",        "8000"),
 ]
 
 # BAS 2024 (Sweden) — standard chart of accounts

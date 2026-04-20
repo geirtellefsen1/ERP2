@@ -110,6 +110,7 @@ export default function ImportPage() {
   const [booking, setBooking] = useState(false)
   const [bookResult, setBookResult] = useState<ImportResult | null>(null)
   const [loadingSamples, setLoadingSamples] = useState(false)
+  const [loadingBaseline, setLoadingBaseline] = useState(false)
   const [trialBalance, setTrialBalance] = useState<TrialBalance | null>(null)
   const [plReport, setPLReport] = useState<PLReport | null>(null)
   const [bsReport, setBSReport] = useState<BSReport | null>(null)
@@ -174,6 +175,41 @@ export default function ImportPage() {
       toast(e.message || "Failed to load samples", "error")
     } finally {
       setLoadingSamples(false)
+    }
+  }
+
+  async function loadDemoBaseline() {
+    if (!selectedClient) {
+      toast("Select a client first", "error")
+      return
+    }
+    setLoadingBaseline(true)
+    try {
+      const result = await apiPost<{
+        seeded: number
+        entries: number
+        period: string
+        hotel_name: string
+        reason: string
+        coa_notice: string
+      }>(`/api/v1/ehf/demo-baseline?client_id=${selectedClient.id}`, {})
+      if (result.seeded > 0) {
+        toast(
+          `Seeded ${result.entries} journal entries for ${result.hotel_name} (${result.period})`,
+          "success"
+        )
+      } else {
+        toast(
+          result.reason
+            ? `Skipped: ${result.reason}`
+            : "Baseline already loaded",
+          "error"
+        )
+      }
+    } catch (e: any) {
+      toast(e.message || "Failed to load baseline", "error")
+    } finally {
+      setLoadingBaseline(false)
     }
   }
 
@@ -380,6 +416,32 @@ export default function ImportPage() {
             <div className="flex-1 border-t" />
             <span className="text-xs text-muted-foreground">or use demo data</span>
             <div className="flex-1 border-t" />
+          </div>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30 p-4">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-[260px]">
+                <h4 className="text-sm font-medium text-amber-900 dark:text-amber-200">
+                  Hotel Q1 baseline (recommended for demo)
+                </h4>
+                <p className="text-xs text-amber-800/80 dark:text-amber-200/80 mt-1 leading-relaxed">
+                  Seeds a legacy Norwegian hotel: opening balance
+                  (bygg, inventar, pantelån, egenkapital) plus 3 months of
+                  revenue (rom 12%, mat 15%, alkohol/minibar/konferanse 25%)
+                  and typical Q1 expenses. Load this first — then run the
+                  EHF import to see April's supplier invoices land on top.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={loadDemoBaseline}
+                loading={loadingBaseline}
+                disabled={!selectedClient}
+              >
+                <Building2 className="h-4 w-4" />
+                Load Q1 Baseline
+              </Button>
+            </div>
           </div>
 
           <div className="flex gap-3 justify-center">

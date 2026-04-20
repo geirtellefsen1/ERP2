@@ -25,6 +25,7 @@ from app.services.ehf import (
     EHFInvoice,
 )
 from app.services.nordic import get_coa_template
+from app.services.hotel_demo import seed_hotel_baseline
 
 router = APIRouter(prefix="/api/v1/ehf", tags=["ehf"])
 
@@ -381,4 +382,56 @@ def import_sample_invoices(
         journal_entries=results,
         errors=errors,
         notices=notices,
+    )
+
+
+class BaselineResult(BaseModel):
+    seeded: int
+    entries: int
+    period: str = ""
+    hotel_name: str = ""
+    reason: str = ""
+    coa_notice: str = ""
+
+
+@router.post("/demo-baseline", response_model=BaselineResult)
+def load_demo_baseline(
+    client_id: int = Query(...),
+    current_user: AuthUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Seed a realistic Q1 2026 baseline for a Norwegian legacy hotel:
+    opening balance + 3 months of revenue + 3 months of combined expenses.
+    Refuses if the client already has journal entries.
+    """
+    client = db.query(Client).filter(
+        Client.id == client_id,
+        Client.agency_id == current_user.agency_id,
+    ).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    coa_notice = _ensure_coa_seeded(db, client) or ""
+
+    accounts_by_code = {
+        a.code: a for a in db.query(Account).filter(Account.client_id == client.id).all()
+    }
+
+    try:
+        result = seed_hotel_baseline(db, client, current_user.id, accounts_by_code)
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if result["seeded"] > 0 or coa_notice:
+        db.commit()
+
+    return BaselineResult(
+        seeded=result["seeded"],
+        entries=result["entries"],
+        period=result.get("period", ""),
+        hotel_name=result.get("hotel_name", ""),
+        reason=result.get("reason", ""),
+        coa_notice=coa_notice,
     )
