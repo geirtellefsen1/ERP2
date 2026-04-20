@@ -316,6 +316,7 @@ async def import_and_book_ehf(
     seed_notice = _ensure_coa_seeded(db, client)
     if seed_notice:
         notices.append(seed_notice)
+        db.commit()
 
     parsed_invoices: list[EHFInvoice] = []
     errors: list[str] = []
@@ -372,6 +373,7 @@ def import_sample_invoices(
     seed_notice = _ensure_coa_seeded(db, client)
     if seed_notice:
         notices.append(seed_notice)
+        db.commit()
 
     invoices = generate_sample_invoices(client.name, client.registration_number or "974760673")
     results: list[BookingResult] = []
@@ -426,6 +428,8 @@ def load_demo_baseline(
         raise HTTPException(status_code=404, detail="Client not found")
 
     coa_notice = _ensure_coa_seeded(db, client) or ""
+    if coa_notice:
+        db.commit()
 
     accounts_by_code = {
         a.code: a for a in db.query(Account).filter(Account.client_id == client.id).all()
