@@ -24,6 +24,7 @@ from app.services.ehf import (
     suggest_account_code,
     EHFInvoice,
 )
+from app.services.nordic import get_coa_template
 
 router = APIRouter(prefix="/api/v1/ehf", tags=["ehf"])
 
@@ -68,6 +69,7 @@ class ImportResult(BaseModel):
     invoices_booked: int
     journal_entries: list[BookingResult]
     errors: list[str]
+    notices: list[str] = []
 
 
 def _ehf_to_parsed(inv: EHFInvoice) -> ParsedInvoice:
@@ -146,6 +148,45 @@ async def parse_uploaded_ehf(
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to parse {f.filename}: {str(e)}")
     return results
+
+
+def _ensure_coa_seeded(db: Session, client: Client) -> Optional[str]:
+    """
+    Auto-seed NS 4102 / BAS 2024 if the client has no chart of accounts.
+    Returns a notice string if seeding happened, None otherwise.
+    Refuses to seed if partial COA exists (avoids corrupting customised setups).
+    """
+    existing = db.query(Account).filter(Account.client_id == client.id).count()
+    if existing > 0:
+        return None
+
+    country = (client.country or "NO").upper()
+    if country not in ("NO", "SE"):
+        country = "NO"
+
+    template = get_coa_template(country)
+    name_key = "name_no" if country == "NO" else "name_sv"
+    parent_map: dict[str, int] = {}
+
+    for acct in template:
+        parent_id = parent_map.get(acct.parent_code) if acct.parent_code else None
+        account = Account(
+            client_id=client.id,
+            code=acct.code,
+            name=getattr(acct, name_key),
+            account_type=acct.type,
+            parent_id=parent_id,
+            is_active=True,
+        )
+        db.add(account)
+        db.flush()
+        parent_map[acct.code] = account.id
+
+    return (
+        f"Chart of accounts auto-seeded for {client.name}: "
+        f"{len(template)} accounts ({country} — "
+        f"{'NS 4102' if country == 'NO' else 'BAS 2024'})."
+    )
 
 
 def _book_invoice(inv: EHFInvoice, client_id: int, user_id: int, db: Session) -> BookingResult:
@@ -257,6 +298,11 @@ async def import_and_book_ehf(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
 
+    notices: list[str] = []
+    seed_notice = _ensure_coa_seeded(db, client)
+    if seed_notice:
+        notices.append(seed_notice)
+
     parsed_invoices: list[EHFInvoice] = []
     errors: list[str] = []
 
@@ -282,7 +328,7 @@ async def import_and_book_ehf(
         except Exception as e:
             errors.append(f"Booking error for {inv.invoice_number}: {str(e)}")
 
-    if results:
+    if results or notices:
         db.commit()
 
     return ImportResult(
@@ -290,6 +336,7 @@ async def import_and_book_ehf(
         invoices_booked=len(results),
         journal_entries=results,
         errors=errors,
+        notices=notices,
     )
 
 
@@ -307,6 +354,11 @@ def import_sample_invoices(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
 
+    notices: list[str] = []
+    seed_notice = _ensure_coa_seeded(db, client)
+    if seed_notice:
+        notices.append(seed_notice)
+
     invoices = generate_sample_invoices(client.name, client.registration_number or "974760673")
     results: list[BookingResult] = []
     errors: list[str] = []
@@ -320,7 +372,7 @@ def import_sample_invoices(
         except Exception as e:
             errors.append(f"Booking error for {inv.invoice_number}: {str(e)}")
 
-    if results:
+    if results or notices:
         db.commit()
 
     return ImportResult(
@@ -328,4 +380,5 @@ def import_sample_invoices(
         invoices_booked=len(results),
         journal_entries=results,
         errors=errors,
+        notices=notices,
     )

@@ -69,6 +69,7 @@ interface ImportResult {
   invoices_booked: number
   journal_entries: BookingResult[]
   errors: string[]
+  notices?: string[]
 }
 
 interface ReportLine {
@@ -518,6 +519,20 @@ export default function ImportPage() {
               icon={<DollarSign />}
             />
           </div>
+
+          {bookResult.notices && bookResult.notices.length > 0 && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+              <p className="text-sm font-medium text-blue-700 dark:text-blue-400 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                {bookResult.notices.length} notice(s):
+              </p>
+              <ul className="text-sm text-blue-700/80 dark:text-blue-400/80 mt-2 space-y-1 list-disc list-inside">
+                {bookResult.notices.map((n, i) => (
+                  <li key={i}>{n}</li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {bookResult.errors.length > 0 && (
             <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
