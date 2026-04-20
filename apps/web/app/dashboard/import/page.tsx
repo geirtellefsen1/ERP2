@@ -429,7 +429,7 @@ export default function ImportPage() {
                   (bygg, inventar, pantelån, egenkapital) plus 3 months of
                   revenue (rom 12%, mat 15%, alkohol/minibar/konferanse 25%)
                   and typical Q1 expenses. Load this first — then run the
-                  EHF import to see April's supplier invoices land on top.
+                  EHF import to see April&apos;s supplier invoices land on top.
                 </p>
               </div>
               <Button
