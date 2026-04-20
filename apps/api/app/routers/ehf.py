@@ -153,13 +153,13 @@ async def parse_uploaded_ehf(
 
 def _ensure_coa_seeded(db: Session, client: Client) -> Optional[str]:
     """
-    Auto-seed NS 4102 / BAS 2024 if the client has no chart of accounts.
-    Returns a notice string if seeding happened, None otherwise.
-    Refuses to seed if partial COA exists (avoids corrupting customised setups).
+    Ensure the client has the full NS 4102 / BAS 2024 chart of accounts.
+    Upsert by code: adds any template accounts that are missing, leaves
+    existing accounts untouched. Returns a notice if anything was added,
+    None if the COA was already complete.
     """
-    existing = db.query(Account).filter(Account.client_id == client.id).count()
-    if existing > 0:
-        return None
+    existing_accounts = db.query(Account).filter(Account.client_id == client.id).all()
+    existing_codes = {a.code for a in existing_accounts}
 
     country = (client.country or "NO").upper()
     if country not in ("NO", "SE"):
@@ -167,9 +167,13 @@ def _ensure_coa_seeded(db: Session, client: Client) -> Optional[str]:
 
     template = get_coa_template(country)
     name_key = "name_no" if country == "NO" else "name_sv"
-    parent_map: dict[str, int] = {}
+
+    parent_map: dict[str, int] = {a.code: a.id for a in existing_accounts}
+    added = 0
 
     for acct in template:
+        if acct.code in existing_codes:
+            continue
         parent_id = parent_map.get(acct.parent_code) if acct.parent_code else None
         account = Account(
             client_id=client.id,
@@ -182,11 +186,20 @@ def _ensure_coa_seeded(db: Session, client: Client) -> Optional[str]:
         db.add(account)
         db.flush()
         parent_map[acct.code] = account.id
+        added += 1
 
+    if added == 0:
+        return None
+
+    template_label = "NS 4102" if country == "NO" else "BAS 2024"
+    if len(existing_codes) == 0:
+        return (
+            f"Chart of accounts auto-seeded for {client.name}: "
+            f"{added} accounts ({country} — {template_label})."
+        )
     return (
-        f"Chart of accounts auto-seeded for {client.name}: "
-        f"{len(template)} accounts ({country} — "
-        f"{'NS 4102' if country == 'NO' else 'BAS 2024'})."
+        f"Chart of accounts topped up for {client.name}: "
+        f"{added} missing accounts added ({country} — {template_label})."
     )
 
 
